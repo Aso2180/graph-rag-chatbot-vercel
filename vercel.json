@@ -7,12 +7,6 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "build": {
-    "env": {
-      "NEXT_BUILD_MODE": "standalone"
-    }
-  },
   "regions": ["nrt1"],
-  "outputFileTracingRoot": ".",
   "crons": []
 }
