@@ -1,11 +1,8 @@
 {
   "functions": {
     "app/api/**/*": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "regions": ["hnd1"]
     }
-  },
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "crons": []
+  }
 }
