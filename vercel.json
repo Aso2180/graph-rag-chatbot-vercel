@@ -1,0 +1,18 @@
+{
+  "functions": {
+    "app/api/**/*": {
+      "maxDuration": 300
+    }
+  },
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "NEXT_BUILD_MODE": "standalone"
+    }
+  },
+  "regions": ["nrt1"],
+  "outputFileTracingRoot": ".",
+  "crons": []
+}
