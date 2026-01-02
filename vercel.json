@@ -7,6 +7,5 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "regions": ["nrt1"],
   "crons": []
 }
