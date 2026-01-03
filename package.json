@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "next build --webpack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -13,23 +13,23 @@
     "axios": "^1.7.2",
     "form-data": "^4.0.5",
     "neo4j-driver": "^5.20.0",
-    "next": "16.1.0",
+    "next": "14.2.20",
     "node-fetch": "^3.3.2",
     "pdf-parse": "^2.4.5",
     "pdf-parse-new": "^2.0.0",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/dotenv": "^6.1.1",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
     "dotenv": "^17.2.3",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.20",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
