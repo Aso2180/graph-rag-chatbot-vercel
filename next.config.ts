@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['pdf-parse-new'],
   
   // Workspace root configuration
-  outputFileTracingRoot: '/mnt/c/Users/aso/myenv/AI_guideline/graph-rag-chatbot',
+  // outputFileTracingRoot: '/mnt/c/Users/aso/myenv/graph-rag-chatbot-vercel',
   
   // Environment variable handling
   env: {
