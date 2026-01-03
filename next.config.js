@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Configure allowed origins for development
   ...(process.env.NODE_ENV === 'development' && {
     allowedDevOrigins: ['172.28.50.250'],
@@ -15,7 +14,6 @@ const nextConfig: NextConfig = {
   
   // File upload configuration
   serverExternalPackages: ['pdf-parse-new'],
-  
   
   // Security headers
   async headers() {
@@ -45,4 +43,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
