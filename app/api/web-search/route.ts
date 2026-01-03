@@ -81,8 +81,8 @@ async function performWebSearch(query: string): Promise<any[]> {
         }
       });
       
-      if (serpResponse.data.organic_results) {
-        return serpResponse.data.organic_results.map((result: any) => ({
+      if ((serpResponse.data as any).organic_results) {
+        return (serpResponse.data as any).organic_results.map((result: any) => ({
           title: result.title,
           link: result.link,
           snippet: result.snippet || result.description || '',
@@ -106,7 +106,7 @@ async function performWebSearch(query: string): Promise<any[]> {
         }
       });
       
-      return googleResponse.data.items || [];
+      return (googleResponse.data as any).items || [];
     }
     
     // API キーがない場合はダミーデータを返す
@@ -160,8 +160,8 @@ async function saveResultsToKnowledgeGraph(results: any[], query: string): Promi
       source: 'web-search-auto'
     });
     
-    if (response.data.success) {
-      console.log(`Saved ${response.data.savedCount} search results to knowledge graph`);
+    if ((response.data as any).success) {
+      console.log(`Saved ${(response.data as any).savedCount} search results to knowledge graph`);
     }
   } catch (error) {
     console.error('Error saving to knowledge graph:', error);

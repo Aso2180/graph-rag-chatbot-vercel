@@ -230,8 +230,8 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      if (serpResponse.data.organic_results) {
-        const results = serpResponse.data.organic_results.map((result: any) => ({
+      if ((serpResponse.data as any).organic_results) {
+        const results = (serpResponse.data as any).organic_results.map((result: any) => ({
           title: result.title,
           link: result.link,
           snippet: result.snippet || result.description || '',
