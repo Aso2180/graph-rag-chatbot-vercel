@@ -13,7 +13,9 @@ const nextConfig = {
   }),
   
   // File upload configuration
-  serverExternalPackages: ['pdf-parse-new'],
+  experimental: {
+    serverComponentsExternalPackages: ['pdf-parse-new'],
+  },
   
   // Security headers
   async headers() {
