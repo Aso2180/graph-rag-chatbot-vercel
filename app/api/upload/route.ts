@@ -6,6 +6,9 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  console.log('Upload endpoint called at:', new Date().toISOString());
+  console.log('Request headers:', Object.fromEntries(request.headers.entries()));
+  
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -14,6 +17,23 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json(
         { error: 'No file uploaded' },
+        { status: 400 }
+      );
+    }
+    
+    // Log file details for debugging
+    console.log('Upload request received:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      memberEmail: memberEmail
+    });
+    
+    // Check file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: `File size exceeds limit. Maximum size is ${formatFileSize(maxSize)}` },
         { status: 400 }
       );
     }
@@ -84,9 +104,30 @@ export async function POST(request: NextRequest) {
     return response;
 
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('Upload error details:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      type: error instanceof Error ? error.constructor.name : typeof error
+    });
+    
+    // Return more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('FormData')) {
+        return NextResponse.json(
+          { error: 'Failed to parse upload data. Please try a smaller file.' },
+          { status: 400 }
+        );
+      }
+      if (error.message.includes('Neo4j') || error.message.includes('connect')) {
+        return NextResponse.json(
+          { error: 'Database connection failed. Please try again later.' },
+          { status: 503 }
+        );
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Upload failed' },
+      { error: 'Upload failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

@@ -11,11 +11,14 @@ interface PDFChunk {
 
 export async function processPDFForNeo4jFromBuffer(buffer: Buffer, fileName: string, memberEmail?: string) {
   console.log(`Starting PDF processing for: ${fileName}`);
+  console.log(`Buffer size: ${buffer.length} bytes`);
   
   try {
     // PDF解析
+    console.log('Loading pdf-parse-new module...');
     // @ts-ignore - Using pdf-parse-new which has v1 compatible API
     const pdf = await import('pdf-parse-new');
+    console.log('Parsing PDF...');
     const pdfData = await pdf.default(buffer);
     console.log(`PDF parsed: ${pdfData.numpages} pages, ${pdfData.text.length} characters`);
     
@@ -37,14 +40,21 @@ export async function processPDFForNeo4jFromBuffer(buffer: Buffer, fileName: str
     // テキストをチャンクに分割
     const chunks = splitTextIntoChunks(pdfData.text, 1000); // 1000文字ごとにチャンク分割
     
-    // Neo4jに保存
-    await savePDFToNeo4j(metadata, chunks);
+    // Neo4jに保存（失敗した場合はワーニングのみ）
+    let neo4jSaved = false;
+    try {
+      await savePDFToNeo4j(metadata, chunks);
+      neo4jSaved = true;
+      console.log(`PDF processing completed: ${chunks.length} chunks created and saved to Neo4j`);
+    } catch (error) {
+      console.warn(`Neo4j save failed, but PDF was processed successfully:`, error instanceof Error ? error.message : 'Unknown error');
+    }
     
-    console.log(`PDF processing completed: ${chunks.length} chunks created`);
     return {
       success: true,
       metadata,
-      chunkCount: chunks.length
+      chunkCount: chunks.length,
+      neo4jSaved
     };
     
   } catch (error) {
@@ -150,7 +160,15 @@ async function savePDFToNeo4j(metadata: any, chunks: PDFChunk[]) {
   console.log('NEO4J_USER:', env.NEO4J_USER);
   console.log('NEO4J_PASSWORD exists:', !!env.NEO4J_PASSWORD);
   
-  const session = getSession();
+  let session;
+  try {
+    console.log('Creating Neo4j session...');
+    session = getSession();
+    console.log('Neo4j session created successfully');
+  } catch (error) {
+    console.error('Failed to create Neo4j session:', error);
+    throw new Error('Database connection failed');
+  }
   
   try {
     // 1. Documentノードを作成（GAIS会員情報を含む）
@@ -253,9 +271,18 @@ async function savePDFToNeo4j(metadata: any, chunks: PDFChunk[]) {
     
   } catch (error) {
     console.error('Failed to save PDF to Neo4j:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+    }
     throw error;
   } finally {
-    await session.close();
+    if (session) {
+      await session.close();
+    }
   }
 }
 
