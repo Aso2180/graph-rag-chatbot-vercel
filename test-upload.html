@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Upload Test</title>
+</head>
+<body>
+    <h1>PDF Upload Test</h1>
+    <form id="uploadForm">
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" id="email" value="test@example.com" required>
+        </div>
+        <div>
+            <label for="file">PDF File:</label>
+            <input type="file" id="file" accept=".pdf" required>
+        </div>
+        <button type="submit">Upload</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('memberEmail', document.getElementById('email').value);
+            formData.append('file', document.getElementById('file').files[0]);
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Uploading...';
+            
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div style="color: green">Success: ${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div style="color: red">Error: ${JSON.stringify(data, null, 2)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="color: red">Error: ${error.message}</div>`;
+            }
+        });
+    </script>
+</body>
+</html>

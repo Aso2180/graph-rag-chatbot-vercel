@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
 import { checkRateLimit, getClientIp, createRateLimitResponse, addRateLimitHeaders } from '@/lib/rate-limit';
 import { performContentCheck, sanitizeFileName, formatFileSize } from '@/lib/moderation/content-check';
+
+export const runtime = 'nodejs';
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,29 +64,11 @@ export async function POST(request: NextRequest) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-
-    // アップロードディレクトリを作成
-    const uploadDir = join(process.cwd(), 'uploads');
     const sanitizedName = sanitizeFileName(file.name);
     const fileName = `${Date.now()}-${sanitizedName}`;
-    const filePath = join(uploadDir, fileName);
-
-    // ディレクトリが存在しない場合は作成
-    try {
-      await writeFile(filePath, buffer);
-    } catch (error) {
-      // ディレクトリが存在しない場合
-      const fs = require('fs');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-        await writeFile(filePath, buffer);
-      } else {
-        throw error;
-      }
-    }
 
     // PDF解析とNeo4jへの保存（GAIS会員情報を含む）
-    await processPDFForGraphRAG(filePath, fileName, memberEmail);
+    await processPDFForGraphRAG(buffer, fileName, memberEmail);
 
     const response = NextResponse.json({
       message: 'File uploaded successfully',
@@ -109,10 +92,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processPDFForGraphRAG(filePath: string, fileName: string, memberEmail: string) {
+async function processPDFForGraphRAG(buffer: Buffer, fileName: string, memberEmail: string) {
   try {
-    const { processPDFForNeo4j } = await import('@/lib/pdf/processor');
-    const result = await processPDFForNeo4j(filePath, fileName, memberEmail);
+    const { processPDFForNeo4jFromBuffer } = await import('@/lib/pdf/processor');
+    const result = await processPDFForNeo4jFromBuffer(buffer, fileName, memberEmail);
     console.log(`PDF processing completed: ${fileName}`, result);
     return result;
   } catch (error) {

@@ -9,6 +9,50 @@ interface PDFChunk {
   endIndex: number;
 }
 
+export async function processPDFForNeo4jFromBuffer(buffer: Buffer, fileName: string, memberEmail?: string) {
+  console.log(`Starting PDF processing for: ${fileName}`);
+  
+  try {
+    // PDF解析
+    // @ts-ignore - Using pdf-parse-new which has v1 compatible API
+    const pdf = await import('pdf-parse-new');
+    const pdfData = await pdf.default(buffer);
+    console.log(`PDF parsed: ${pdfData.numpages} pages, ${pdfData.text.length} characters`);
+    
+    // メタデータ抽出（GAIS会員情報を含む）
+    const metadata = {
+      title: pdfData.info?.Title || fileName,
+      author: pdfData.info?.Author || 'Unknown',
+      subject: pdfData.info?.Subject || '',
+      keywords: pdfData.info?.Keywords || '',
+      creationDate: pdfData.info?.CreationDate || new Date(),
+      pageCount: pdfData.numpages,
+      fileName: fileName,
+      // GAIS会員情報
+      uploadedBy: memberEmail || 'anonymous',
+      uploadedAt: new Date(),
+      organization: 'GAIS'
+    };
+    
+    // テキストをチャンクに分割
+    const chunks = splitTextIntoChunks(pdfData.text, 1000); // 1000文字ごとにチャンク分割
+    
+    // Neo4jに保存
+    await savePDFToNeo4j(metadata, chunks);
+    
+    console.log(`PDF processing completed: ${chunks.length} chunks created`);
+    return {
+      success: true,
+      metadata,
+      chunkCount: chunks.length
+    };
+    
+  } catch (error) {
+    console.error('PDF processing error:', error);
+    throw new Error(`Failed to process PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 export async function processPDFForNeo4j(filePath: string, fileName: string, memberEmail?: string) {
   console.log(`Starting PDF processing for: ${fileName}`);
   
@@ -31,7 +75,6 @@ export async function processPDFForNeo4j(filePath: string, fileName: string, mem
       creationDate: pdfData.info?.CreationDate || new Date(),
       pageCount: pdfData.numpages,
       fileName: fileName,
-      filePath: filePath,
       // GAIS会員情報
       uploadedBy: memberEmail || 'anonymous',
       uploadedAt: new Date(),
@@ -119,7 +162,6 @@ async function savePDFToNeo4j(metadata: any, chunks: PDFChunk[]) {
         subject: $subject,
         keywords: $keywords,
         fileName: $fileName,
-        source: $filePath,
         pageCount: $pageCount,
         createdAt: datetime(),
         uploadedAt: datetime(),
