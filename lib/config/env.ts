@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export const env = {
-  NEO4J_URI: process.env.NEO4J_URI || 'neo4j+s://bf116132.databases.neo4j.io',
+  NEO4J_URI: process.env.NEO4J_URI || 'neo4j+s://12cc4171.databases.neo4j.io',
   NEO4J_USER: process.env.NEO4J_USER || 'neo4j',
   NEO4J_PASSWORD: process.env.NEO4J_PASSWORD || '',
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
