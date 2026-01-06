@@ -48,7 +48,15 @@ export default function MemberDashboard({ memberEmail }: MemberDashboardProps) {
       }
       
       const data = await response.json();
-      setStats(data);
+      
+      // Check if data contains an error flag but still has stats
+      if (data.error && data.documentCount !== undefined) {
+        // Database is unavailable but we have placeholder data
+        setStats(data);
+        setError(null); // Don't show error if we have data
+      } else {
+        setStats(data);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load member statistics');
       console.error('Member stats fetch error:', err);

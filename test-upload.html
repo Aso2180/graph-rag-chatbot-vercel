@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Upload Test - GAIS GraphRAG</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2563eb;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+        input[type="email"],
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #2563eb;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+        .error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+        .loading {
+            background-color: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+        pre {
+            background-color: #f3f4f6;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9fafb;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 PDF Upload Test - GAIS GraphRAG</h1>
+        
+        <form id="uploadForm">
+            <div class="form-group">
+                <label for="email">メールアドレス:</label>
+                <input type="email" id="email" name="email" value="test@gais.jp" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="file">PDFファイル:</label>
+                <input type="file" id="file" name="file" accept=".pdf" required>
+            </div>
+            
+            <button type="submit">アップロード</button>
+            <button type="button" id="testStats">統計情報を確認</button>
+        </form>
+        
+        <div id="result" class="result"></div>
+        <div id="stats" class="stats" style="display:none;"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const resultDiv = document.getElementById('result');
+        const statsDiv = document.getElementById('stats');
+        const testStatsBtn = document.getElementById('testStats');
+        
+        // Get base URL
+        const baseUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000' 
+            : 'https://graph-rag-chatbot-vercel.vercel.app';
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const file = document.getElementById('file').files[0];
+            
+            if (!file) {
+                showResult('ファイルを選択してください', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('memberEmail', email);
+            
+            showResult('アップロード中...', 'loading');
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(
+                        `✅ アップロード成功！\n\nファイル名: ${data.fileName}\nサイズ: ${data.fileSize} bytes\nアップロード者: ${data.uploadedBy}\n組織: ${data.organization}\n\n詳細:\n${JSON.stringify(data, null, 2)}`,
+                        'success'
+                    );
+                } else {
+                    showResult(
+                        `❌ アップロード失敗\n\nエラー: ${data.error}\n${data.details ? `詳細: ${data.details}` : ''}\n\nレスポンス:\n${JSON.stringify(data, null, 2)}`,
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult(
+                    `❌ ネットワークエラー\n\n${error.message}`,
+                    'error'
+                );
+            }
+        });
+        
+        testStatsBtn.addEventListener('click', async () => {
+            const email = document.getElementById('email').value;
+            
+            if (!email) {
+                showResult('メールアドレスを入力してください', 'error');
+                return;
+            }
+            
+            statsDiv.style.display = 'block';
+            statsDiv.innerHTML = '<p>統計情報を取得中...</p>';
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/member-stats?email=${encodeURIComponent(email)}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statsDiv.innerHTML = `
+                        <h3>📊 会員統計情報</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    statsDiv.innerHTML = `
+                        <h3>❌ 統計情報取得エラー</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                statsDiv.innerHTML = `
+                    <h3>❌ ネットワークエラー</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        });
+        
+        function showResult(message, type) {
+            resultDiv.textContent = message;
+            resultDiv.className = `result ${type}`;
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

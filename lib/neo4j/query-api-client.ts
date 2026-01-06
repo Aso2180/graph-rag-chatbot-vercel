@@ -125,6 +125,11 @@ export function convertNeo4jValue(value: any): any {
 
 // Neo4j Driver互換のインターフェース
 export function getSession(): QueryAPISession {
-  const client = new Neo4jQueryAPIClient();
-  return new QueryAPISession(client);
+  try {
+    const client = new Neo4jQueryAPIClient();
+    return new QueryAPISession(client);
+  } catch (error) {
+    console.error('Failed to create Neo4j session:', error);
+    throw new Error('Database connection configuration error');
+  }
 }

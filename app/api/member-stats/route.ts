@@ -21,6 +21,8 @@ interface DocumentInfo {
 }
 
 export async function GET(request: NextRequest) {
+  console.log('Member stats API called');
+  
   try {
     // IPベースのレート制限
     const clientIp = getClientIp(request);
@@ -40,7 +42,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const session = getSession();
+    let session;
+    try {
+      session = getSession();
+      console.log('Neo4j session created successfully');
+    } catch (error) {
+      console.error('Failed to create Neo4j session:', error);
+      // Return empty stats when Neo4j is unavailable
+      return NextResponse.json({
+        memberEmail,
+        organization: 'GAIS',
+        documentCount: 0,
+        totalPages: 0,
+        totalChunks: 0,
+        lastUploadDate: null,
+        recentDocuments: [],
+        error: 'Database temporarily unavailable'
+      });
+    }
 
     try {
       // 会員の統計情報を取得
@@ -116,6 +135,10 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Member stats error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return NextResponse.json(
       { error: 'Failed to retrieve member statistics' },
       { status: 500 }
