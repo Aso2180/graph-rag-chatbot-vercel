@@ -5,6 +5,8 @@ import { performContentCheck, sanitizeFileName, formatFileSize } from '@/lib/mod
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
+// Force rebuild - timestamp: 2025-01-06T17:40:00Z
+
 export async function POST(request: NextRequest) {
   console.log('Upload endpoint called at:', new Date().toISOString());
   console.log('Request headers:', Object.fromEntries(request.headers.entries()));
