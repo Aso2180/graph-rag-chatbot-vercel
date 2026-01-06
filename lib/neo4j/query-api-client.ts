@@ -37,6 +37,7 @@ export class Neo4jQueryAPIClient {
   }
 
   async run(statement: string, parameters: Record<string, any> = {}): Promise<any[]> {
+    console.log('Attempting Neo4j query to:', this.baseUrl);
     try {
       const response = await fetch(this.baseUrl, {
         method: 'POST',
@@ -54,6 +55,7 @@ export class Neo4jQueryAPIClient {
       const data = await response.json();
 
       if (!response.ok) {
+        console.error('Neo4j query failed:', response.status, data);
         const error = data as QueryAPIError;
         throw new Error(error.errors?.[0]?.message || 'Query execution failed');
       }
@@ -75,6 +77,9 @@ export class Neo4jQueryAPIClient {
       });
     } catch (error) {
       console.error('Query API error:', error);
+      if (error instanceof Error && error.message.includes('ENOTFOUND')) {
+        throw new Error('Neo4j database connection failed - DNS resolution error');
+      }
       throw error;
     }
   }
