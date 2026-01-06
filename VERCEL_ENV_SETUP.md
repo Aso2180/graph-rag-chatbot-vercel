@@ -10,13 +10,13 @@ Vercelのダッシュボードで以下の環境変数を設定してくださ�
 
 ### 2. Neo4j Database
 - **変数名**: `NEO4J_URI`
-- **値**: `neo4j+s://bf116132.databases.neo4j.io`
+- **値**: `neo4j+s://12cc4171.databases.neo4j.io`
 
 - **変数名**: `NEO4J_USER`
 - **値**: `neo4j`
 
 - **変数名**: `NEO4J_PASSWORD`
-- **値**: `WxYHqHNKFarbahtYX2BeE2RHXE7WOxC6gC7Nv9-Ms40`
+- **値**: `gFngWZB5B6CPwfr4xR8y2HkuOHj9Uz84zlNHRuSYTDU`
 
 ### 3. 検索API (どちらか一つ)
 - **変数名**: `TAVILY_API_KEY`
