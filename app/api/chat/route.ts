@@ -22,6 +22,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`Processing query: ${message}`);
     console.log(`Graph context: ${useGraphContext}, Web search: ${useWebSearch}`);
+    console.log('Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      ANTHROPIC_KEY_SET: !!process.env.ANTHROPIC_API_KEY,
+      ANTHROPIC_KEY_LENGTH: process.env.ANTHROPIC_API_KEY?.length || 0,
+      SERPAPI_KEY_SET: !!process.env.SERPAPI_KEY,
+      BASE_URL: getBaseUrl()
+    });
 
     // 並列でGraph検索とWeb検索を実行
     const [graphResults, webResults] = await Promise.all([
@@ -84,6 +91,13 @@ async function generateAIResponse(query: string, graphResults: any, webResults: 
     // APIキーが設定されている場合はClaude APIを使用
     const apiKey = process.env.ANTHROPIC_API_KEY;
     
+    console.log('generateAIResponse - API Key check:', {
+      hasKey: !!apiKey,
+      keyLength: apiKey?.length || 0,
+      isNotDefault: apiKey !== 'your_anthropic_api_key_here',
+      willUseClaude: !!(apiKey && apiKey !== 'your_anthropic_api_key_here')
+    });
+    
     if (apiKey && apiKey !== 'your_anthropic_api_key_here') {
       const anthropic = getAnthropicClient();
       
@@ -96,13 +110,21 @@ async function generateAIResponse(query: string, graphResults: any, webResults: 
         messages: [{ role: 'user', content: prompt }]
       });
       
-      return response.content[0]?.type === 'text' ? response.content[0].text : 'エラーが発生しました。';
+      const responseText = response.content[0]?.type === 'text' ? response.content[0].text : 'エラーが発生しました。';
+      console.log('Claude API response received, length:', responseText.length);
+      return responseText;
     } else {
       // APIキーが未設定の場合はローカル処理
+      console.log('Using local response generation (no valid API key)');
       return generateLocalResponse(query, graphResults, webResults);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('AI response generation failed:', error);
+    console.error('Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
     return generateLocalResponse(query, graphResults, webResults);
   }
 }

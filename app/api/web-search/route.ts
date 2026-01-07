@@ -69,6 +69,13 @@ async function performWebSearch(query: string): Promise<any[]> {
     // SerpAPI を優先的に使用
     const SERPAPI_KEY = process.env.SERPAPI_KEY;
     
+    console.log('performWebSearch - API keys check:', {
+      hasSerpAPI: !!SERPAPI_KEY,
+      serpAPILength: SERPAPI_KEY?.length || 0,
+      hasGoogleAPI: !!process.env.GOOGLE_SEARCH_API_KEY,
+      hasGoogleCSE: !!process.env.GOOGLE_CSE_ID
+    });
+    
     if (SERPAPI_KEY) {
       const serpResponse = await axios.get('https://serpapi.com/search', {
         params: {
@@ -110,9 +117,15 @@ async function performWebSearch(query: string): Promise<any[]> {
     }
     
     // API キーがない場合はダミーデータを返す
+    console.log('No search API keys found, using dummy data');
     return generateDummySearchResults(query);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Search API error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
     return generateDummySearchResults(query);
   }
 }
