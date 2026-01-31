@@ -18,8 +18,8 @@ export const env = {
   NEO4J_USER: process.env.NEO4J_USER || 'neo4j',
   NEO4J_PASSWORD: process.env.NEO4J_PASSWORD || '',
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-  SERPAPI_KEY: process.env.SERPAPI_KEY,
   TAVILY_API_KEY: process.env.TAVILY_API_KEY,
+  SERPAPI_KEY: process.env.SERPAPI_KEY,
   MODEL_NAME: process.env.MODEL_NAME,
   NODE_ENV: process.env.NODE_ENV
 };

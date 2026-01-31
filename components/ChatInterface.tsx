@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react';
 import LegalDisclaimer from './LegalDisclaimer';
 import MemberDashboard from './MemberDashboard';
 import { validateUploadPermission } from '@/lib/member/validation';
+import { Modal } from './ui/Modal';
+import { DiagnosisWizard } from './diagnosis/DiagnosisWizard';
+import { DocumentGenerator } from './generator/DocumentGenerator';
+import { DiagnosisResult, DiagnosisInput } from '@/types/diagnosis';
 
 interface Message {
   id: string;
@@ -27,10 +31,30 @@ export default function ChatInterface() {
   const [showUpload, setShowUpload] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
+  const [showDiagnosis, setShowDiagnosis] = useState(false);
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
+  const [diagnosisInput, setDiagnosisInput] = useState<DiagnosisInput | null>(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const handleDiagnosisComplete = (result: DiagnosisResult) => {
+    setDiagnosisResult(result);
+  };
+
+  const handleChatWithDiagnosisResult = (summary: string) => {
+    setShowDiagnosis(false);
+    setInput(summary);
+  };
+
+  const handleOpenGeneratorFromDiagnosis = (result: DiagnosisResult, input: DiagnosisInput) => {
+    setDiagnosisResult(result);
+    setDiagnosisInput(input);
+    setShowDiagnosis(false);
+    setShowGenerator(true);
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -152,7 +176,19 @@ export default function ChatInterface() {
             </div>
             <p className="text-gray-600 text-sm">生成AI協会会員向け法的リスク検討支援システム</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowDiagnosis(true)}
+              className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 transition-colors"
+            >
+              🔍 リスク診断
+            </button>
+            <button
+              onClick={() => setShowGenerator(true)}
+              className="px-3 py-1 bg-orange-500 text-white rounded text-sm hover:bg-orange-600 transition-colors"
+            >
+              📝 規約生成
+            </button>
             <button
               onClick={() => setShowUpload(!showUpload)}
               className="px-3 py-1 bg-[#1e73be] text-white rounded text-sm hover:bg-blue-700 transition-colors"
@@ -337,6 +373,34 @@ export default function ChatInterface() {
           Send
         </button>
       </div>
+
+      {/* リスク診断モーダル */}
+      <Modal
+        isOpen={showDiagnosis}
+        onClose={() => setShowDiagnosis(false)}
+        title="AIアプリ法的リスク診断"
+        maxWidth="4xl"
+      >
+        <DiagnosisWizard
+          onComplete={handleDiagnosisComplete}
+          onChatWithResult={handleChatWithDiagnosisResult}
+          onGenerateDocuments={handleOpenGeneratorFromDiagnosis}
+        />
+      </Modal>
+
+      {/* 利用規約生成モーダル */}
+      <Modal
+        isOpen={showGenerator}
+        onClose={() => setShowGenerator(false)}
+        title="利用規約・法的文書ジェネレーター"
+        maxWidth="4xl"
+      >
+        <DocumentGenerator
+          diagnosisResult={diagnosisResult || undefined}
+          diagnosisInput={diagnosisInput || undefined}
+          onClose={() => setShowGenerator(false)}
+        />
+      </Modal>
     </div>
   );
 }

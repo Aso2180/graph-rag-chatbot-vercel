@@ -66,54 +66,38 @@ function enhanceSearchQuery(query: string, context?: string): string {
 
 async function performWebSearch(query: string): Promise<any[]> {
   try {
-    // SerpAPI を優先的に使用
-    const SERPAPI_KEY = process.env.SERPAPI_KEY;
+    // Tavily API を使用
+    const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
     
-    console.log('performWebSearch - API keys check:', {
-      hasSerpAPI: !!SERPAPI_KEY,
-      serpAPILength: SERPAPI_KEY?.length || 0,
-      hasGoogleAPI: !!process.env.GOOGLE_SEARCH_API_KEY,
-      hasGoogleCSE: !!process.env.GOOGLE_CSE_ID
+    console.log('performWebSearch - Tavily API check:', {
+      hasTavily: !!TAVILY_API_KEY,
+      tavilyLength: TAVILY_API_KEY?.length || 0
     });
     
-    if (SERPAPI_KEY) {
-      const serpResponse = await axios.get('https://serpapi.com/search', {
-        params: {
-          api_key: SERPAPI_KEY,
-          q: query,
-          engine: 'google',
-          num: 10,
-          hl: 'ja',
-          gl: 'jp'
-        }
+    if (TAVILY_API_KEY) {
+      const tavilyResponse = await axios.post('https://api.tavily.com/search', {
+        api_key: TAVILY_API_KEY,
+        query: query,
+        search_depth: 'advanced',
+        max_results: 5,
+        include_answer: true,
+        include_raw_content: false
       });
       
-      if ((serpResponse.data as any).organic_results) {
-        return (serpResponse.data as any).organic_results.map((result: any) => ({
+      console.log('Tavily API response:', {
+        status: tavilyResponse.status,
+        hasResults: !!(tavilyResponse.data as any).results,
+        resultCount: (tavilyResponse.data as any).results?.length || 0
+      });
+      
+      if ((tavilyResponse.data as any).results) {
+        return (tavilyResponse.data as any).results.map((result: any) => ({
           title: result.title,
-          link: result.link,
-          snippet: result.snippet || result.description || '',
-          displayLink: result.displayed_link || new URL(result.link).hostname
+          link: result.url,
+          snippet: result.content || result.snippet || '',
+          displayLink: new URL(result.url).hostname
         }));
       }
-    }
-    
-    // Google Custom Search API (フォールバック)
-    const GOOGLE_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
-    const GOOGLE_CSE_ID = process.env.GOOGLE_CSE_ID;
-    
-    if (GOOGLE_API_KEY && GOOGLE_CSE_ID) {
-      const googleResponse = await axios.get('https://www.googleapis.com/customsearch/v1', {
-        params: {
-          key: GOOGLE_API_KEY,
-          cx: GOOGLE_CSE_ID,
-          q: query,
-          num: 5,
-          safe: 'active'
-        }
-      });
-      
-      return (googleResponse.data as any).items || [];
     }
     
     // API キーがない場合はダミーデータを返す

@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       );
       debugInfo.tests.anthropicTest = {
         status: 'success',
-        model: response.data.model
+        model: (response.data as any).model
       };
     } else {
       debugInfo.tests.anthropicTest = { status: 'no_key' };
