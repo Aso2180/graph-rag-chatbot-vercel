@@ -9,7 +9,17 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    const input: DocumentGeneratorInput = await request.json();
+    let input: DocumentGeneratorInput;
+
+    try {
+      input = await request.json();
+    } catch (parseError) {
+      console.error('Request JSON parse error:', parseError);
+      return NextResponse.json(
+        { error: 'リクエストの形式が不正です' },
+        { status: 400 }
+      );
+    }
 
     if (!input.documentTypes || input.documentTypes.length === 0) {
       return NextResponse.json(
@@ -32,15 +42,23 @@ export async function POST(request: NextRequest) {
     const documents: GeneratedDocument[] = [];
 
     for (const docType of input.documentTypes) {
-      const doc = await generateDocument(docType, input);
-      documents.push(doc);
+      try {
+        const doc = await generateDocument(docType, input);
+        documents.push(doc);
+      } catch (docError) {
+        console.error(`Error generating ${docType}:`, docError);
+        // フォールバック文書を追加
+        const fallbackDoc = generateFallbackDocument(docType, input);
+        documents.push(fallbackDoc);
+      }
     }
 
     return NextResponse.json(documents);
   } catch (error) {
     console.error('Document generation error:', error);
+    const errorMessage = error instanceof Error ? error.message : '文書生成に失敗しました';
     return NextResponse.json(
-      { error: '文書生成に失敗しました' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

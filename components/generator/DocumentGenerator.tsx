@@ -73,12 +73,23 @@ export function DocumentGenerator({
         body: JSON.stringify(input),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '文書生成に失敗しました');
+      // レスポンスをテキストとして取得
+      const responseText = await response.text();
+
+      // JSONとしてパース
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        console.error('Invalid JSON response:', responseText);
+        throw new Error('サーバーからの応答が不正です。再度お試しください。');
       }
 
-      const documents: GeneratedDocument[] = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || '文書生成に失敗しました');
+      }
+
+      const documents: GeneratedDocument[] = data;
       setGeneratedDocuments(documents);
       setStep('preview');
     } catch (err) {
