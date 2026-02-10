@@ -248,6 +248,14 @@ export function Step1UserContext({
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isLoading}
             />
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-800">
+                💡 <strong>gais@test.com</strong>：全会員共通のデフォルトドキュメント（AI法的リスク資料）を閲覧できます
+              </p>
+              <p className="text-xs text-blue-700 mt-1">
+                ※ 自分のPDFをアップロードする場合は、ご自身のメールアドレスに変更してください
+              </p>
+            </div>
           </div>
 
           <div>

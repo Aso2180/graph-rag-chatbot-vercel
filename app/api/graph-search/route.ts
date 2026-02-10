@@ -37,37 +37,39 @@ export async function POST(request: NextRequest) {
 
 async function searchGraphData(query: string, context?: string): Promise<any[]> {
   const session = await getSession();
-  
+
   try {
     // クエリからキーワードを抽出
     const keywords = extractKeywords(query);
-    
+
     // Neo4jクエリを構築（PDFドキュメントとWeb検索結果の両方を検索）
+    // デフォルトドキュメント（isDefault = true）は全ユーザーに表示
     const cypherQuery = `
-      // PDFドキュメントからの検索
+      // PDFドキュメントからの検索（デフォルトドキュメントを含む）
       MATCH (source)-[:CONTAINS]->(chunk:Chunk)
       WHERE (source:Document OR source:WebSource)
-      AND ANY(keyword IN $keywords WHERE 
-        chunk.content CONTAINS keyword OR 
+      AND ANY(keyword IN $keywords WHERE
+        chunk.content CONTAINS keyword OR
         chunk.title CONTAINS keyword OR
         source.title CONTAINS keyword
       )
       OPTIONAL MATCH (chunk)-[:RELATES_TO|MENTIONS]->(entity:Entity)
       OPTIONAL MATCH (chunk)-[:IS_UPDATE]->(update:LegalUpdate)
       WITH source, chunk, collect(DISTINCT entity.name) as relatedEntities, update
-      RETURN 
-        CASE 
-          WHEN source:Document THEN source.title 
-          ELSE source.title + ' (Web)' 
+      RETURN
+        CASE
+          WHEN source:Document THEN source.title
+          ELSE source.title + ' (Web)'
         END as documentTitle,
-        CASE 
-          WHEN source:Document THEN source.source 
-          ELSE source.url 
+        CASE
+          WHEN source:Document THEN source.source
+          ELSE source.url
         END as documentSource,
         chunk.content as content,
         chunk.title as chunkTitle,
         relatedEntities,
-        CASE 
+        CASE
+          WHEN source:Document AND source.isDefault = true THEN 1.8
           WHEN chunk.relevanceScore IS NOT NULL THEN chunk.relevanceScore
           WHEN update IS NOT NULL AND update.importance = 'high' THEN 1.5
           WHEN update IS NOT NULL AND update.importance = 'medium' THEN 1.2
@@ -76,13 +78,14 @@ async function searchGraphData(query: string, context?: string): Promise<any[]> 
           ELSE 0.8
         END as score,
         chunk.createdAt as createdAt,
-        update.importance as updateImportance
+        update.importance as updateImportance,
+        CASE WHEN source:Document THEN COALESCE(source.isDefault, false) ELSE false END as isDefault
       ORDER BY score DESC, createdAt DESC
       LIMIT 15
     `;
-    
+
     const result = await session.run(cypherQuery, { keywords });
-    
+
     return result.records.map(record => ({
       documentTitle: record.get('documentTitle'),
       documentSource: record.get('documentSource'),
@@ -91,9 +94,10 @@ async function searchGraphData(query: string, context?: string): Promise<any[]> 
       relatedEntities: record.get('relatedEntities'),
       score: record.get('score') || 0,
       createdAt: record.get('createdAt'),
-      updateImportance: record.get('updateImportance')
+      updateImportance: record.get('updateImportance'),
+      isDefault: record.get('isDefault') || false
     }));
-    
+
   } catch (error) {
     console.error('Neo4j query error:', error);
     // エラーの場合はダミーデータを返す（開発用）

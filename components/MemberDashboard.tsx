@@ -11,6 +11,7 @@ interface MemberStatistics {
   totalChunks: number;
   lastUploadDate: string | null;
   recentDocuments: DocumentInfo[];
+  defaultDocuments: DocumentInfo[];
 }
 
 interface DocumentInfo {
@@ -21,6 +22,19 @@ interface DocumentInfo {
   chunkCount: number;
 }
 
+interface DocumentChunk {
+  text: string;
+  chunkIndex: number;
+  pageNumber: number;
+}
+
+interface DocumentContent {
+  title: string;
+  fileName: string;
+  pageCount: number;
+  chunks: DocumentChunk[];
+}
+
 interface MemberDashboardProps {
   memberEmail: string;
 }
@@ -29,6 +43,9 @@ export default function MemberDashboard({ memberEmail }: MemberDashboardProps) {
   const [stats, setStats] = useState<MemberStatistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentContent | null>(null);
+  const [loadingFileName, setLoadingFileName] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     if (memberEmail) {
@@ -65,9 +82,34 @@ export default function MemberDashboard({ memberEmail }: MemberDashboardProps) {
     }
   };
 
+  const fetchDocumentContent = async (fileName: string) => {
+    setLoadingFileName(fileName);
+    try {
+      const response = await fetch(`/api/document-content?fileName=${encodeURIComponent(fileName)}`);
+
+      if (!response.ok) {
+        throw new Error('ドキュメント内容の取得に失敗しました');
+      }
+
+      const data = await response.json();
+      setSelectedDocument(data);
+      setShowModal(true);
+    } catch (err) {
+      console.error('Document content fetch error:', err);
+      alert(err instanceof Error ? err.message : 'ドキュメント内容の取得に失敗しました');
+    } finally {
+      setLoadingFileName(null);
+    }
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedDocument(null);
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '未アップロード';
-    
+
     try {
       const date = new Date(dateString);
       return date.toLocaleString('ja-JP', {
@@ -206,6 +248,52 @@ export default function MemberDashboard({ memberEmail }: MemberDashboardProps) {
         </CardContent>
       </Card>
 
+      {/* デフォルトドキュメント（全会員共通） */}
+      {stats.defaultDocuments && Array.isArray(stats.defaultDocuments) && stats.defaultDocuments.length > 0 && (
+        <Card className="border-2 border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="text-lg text-green-700 flex items-center">
+              <span className="mr-2">📚</span>
+              デフォルトドキュメント（全会員共通）
+            </CardTitle>
+            <p className="text-sm text-green-600 mt-1">
+              これらのドキュメントは全会員が利用可能なデフォルトの法的リスク分析資料です
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {stats.defaultDocuments.map((doc, index) => (
+                <div key={index} className="border border-green-300 bg-white rounded-lg p-4 hover:bg-green-50 transition-colors">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900">{doc.title}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{doc.fileName}</p>
+                      <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                        <span>{doc.pageCount}ページ</span>
+                        <span>{doc.chunkCount}チャンク</span>
+                        <span>{formatDate(doc.uploadedAt)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+                        デフォルト
+                      </span>
+                      <button
+                        onClick={() => fetchDocumentContent(doc.fileName)}
+                        disabled={loadingFileName !== null}
+                        className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                      >
+                        {loadingFileName === doc.fileName ? '読込中...' : '内容を見る'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* アップロード履歴 */}
       <Card>
         <CardHeader>
@@ -240,6 +328,57 @@ export default function MemberDashboard({ memberEmail }: MemberDashboardProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* ドキュメント内容表示モーダル */}
+      {showModal && selectedDocument && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            {/* モーダルヘッダー */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{selectedDocument.title}</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {selectedDocument.pageCount}ページ | {selectedDocument.chunks.length}チャンク
+                </p>
+              </div>
+              <button
+                onClick={closeModal}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* モーダルコンテンツ */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-6">
+                {selectedDocument.chunks.map((chunk, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-500">
+                        チャンク {chunk.chunkIndex + 1} {chunk.pageNumber && `(ページ ${chunk.pageNumber})`}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                      {chunk.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* モーダルフッター */}
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={closeModal}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

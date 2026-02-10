@@ -10,6 +10,7 @@ interface MemberStatistics {
   totalChunks: number;
   lastUploadDate: string | null;
   recentDocuments: DocumentInfo[];
+  defaultDocuments: DocumentInfo[];
 }
 
 interface DocumentInfo {
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
         totalChunks: 0,
         lastUploadDate: null,
         recentDocuments: [],
+        defaultDocuments: [],
         error: 'Database temporarily unavailable'
       });
     }
@@ -78,6 +80,35 @@ export async function GET(request: NextRequest) {
       `, { email: memberEmail });
 
       if (statsResult.records.length === 0) {
+        // メンバー自身のドキュメントはないが、デフォルトドキュメントを取得
+        let defaultDocuments: DocumentInfo[] = [];
+        try {
+          const defaultDocsResult = await session.run(`
+            MATCH (d:Document)
+            WHERE d.isDefault = true
+            OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+            WITH d, count(c) as chunkCount
+            RETURN
+              d.title as title,
+              d.fileName as fileName,
+              d.uploadedAt as uploadedAt,
+              d.pageCount as pageCount,
+              chunkCount
+            ORDER BY d.uploadedAt DESC
+          `);
+
+          defaultDocuments = defaultDocsResult.records.map(record => ({
+            title: record.get('title'),
+            fileName: record.get('fileName'),
+            uploadedAt: record.get('uploadedAt'),
+            pageCount: record.get('pageCount'),
+            chunkCount: record.get('chunkCount')
+          }));
+        } catch (error) {
+          console.warn('Failed to fetch default documents:', error);
+          defaultDocuments = [];
+        }
+
         return NextResponse.json({
           memberEmail,
           organization: 'GAIS',
@@ -85,7 +116,8 @@ export async function GET(request: NextRequest) {
           totalPages: 0,
           totalChunks: 0,
           lastUploadDate: null,
-          recentDocuments: []
+          recentDocuments: [],
+          defaultDocuments
         });
       }
 
@@ -115,6 +147,36 @@ export async function GET(request: NextRequest) {
         chunkCount: record.get('chunkCount')
       }));
 
+      // デフォルトドキュメントを取得（全ユーザーに表示）
+      let defaultDocuments: DocumentInfo[] = [];
+      try {
+        const defaultDocsResult = await session.run(`
+          MATCH (d:Document)
+          WHERE d.isDefault = true
+          OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+          WITH d, count(c) as chunkCount
+          RETURN
+            d.title as title,
+            d.fileName as fileName,
+            d.uploadedAt as uploadedAt,
+            d.pageCount as pageCount,
+            chunkCount
+          ORDER BY d.uploadedAt DESC
+        `);
+
+        defaultDocuments = defaultDocsResult.records.map(record => ({
+          title: record.get('title'),
+          fileName: record.get('fileName'),
+          uploadedAt: record.get('uploadedAt'),
+          pageCount: record.get('pageCount'),
+          chunkCount: record.get('chunkCount')
+        }));
+      } catch (error) {
+        console.warn('Failed to fetch default documents:', error);
+        // デフォルトドキュメントの取得に失敗しても続行
+        defaultDocuments = [];
+      }
+
       const memberStats: MemberStatistics = {
         memberEmail: stats.get('memberEmail') || memberEmail,
         organization: stats.get('organization') || 'GAIS',
@@ -122,7 +184,8 @@ export async function GET(request: NextRequest) {
         totalPages: stats.get('totalPages') || 0,
         totalChunks: stats.get('totalChunks') || 0,
         lastUploadDate: stats.get('lastUploadDate'),
-        recentDocuments
+        recentDocuments,
+        defaultDocuments
       };
 
       const response = NextResponse.json(memberStats);
@@ -139,8 +202,17 @@ export async function GET(request: NextRequest) {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });
+
+    // 開発環境では詳細なエラー情報を返す
+    const isDev = process.env.NODE_ENV === 'development';
     return NextResponse.json(
-      { error: 'Failed to retrieve member statistics' },
+      {
+        error: 'Failed to retrieve member statistics',
+        ...(isDev && {
+          details: error instanceof Error ? error.message : 'Unknown error',
+          type: error instanceof Error ? error.constructor.name : typeof error
+        })
+      },
       { status: 500 }
     );
   }

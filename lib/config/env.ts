@@ -4,10 +4,19 @@ if (process.env.NODE_ENV !== 'production') {
   try {
     const dotenv = require('dotenv');
     const path = require('path');
-    dotenv.config({ 
-      path: path.resolve(process.cwd(), '.env'),
-      override: true 
-    });
+    const fs = require('fs');
+
+    // .env.local を優先的に読み込む（Next.jsの標準に合わせる）
+    const envLocalPath = path.resolve(process.cwd(), '.env.local');
+    const envPath = path.resolve(process.cwd(), '.env');
+
+    if (fs.existsSync(envLocalPath)) {
+      dotenv.config({ path: envLocalPath, override: true });
+      console.log('Loaded environment from .env.local');
+    } else if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath, override: true });
+      console.log('Loaded environment from .env');
+    }
   } catch (error) {
     console.log('Running in production mode, dotenv not needed');
   }

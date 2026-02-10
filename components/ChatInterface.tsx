@@ -42,7 +42,7 @@ export default function ChatInterface() {
   const [useWebSearch, setUseWebSearch] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
-  const [memberEmail, setMemberEmail] = useState('');
+  const [memberEmail, setMemberEmail] = useState('gais@test.com');
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
   const [diagnosisInput, setDiagnosisInput] = useState<DiagnosisInput | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
