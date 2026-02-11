@@ -16,6 +16,7 @@ export interface DocumentGeneratorInput {
   additionalClauses?: string;
   diagnosisResult?: DiagnosisResult;
   diagnosisInput?: DiagnosisInput;
+  chatHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 export interface GeneratedDocument {
@@ -35,8 +36,5 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
 
 export const GOVERNING_LAW_OPTIONS = [
   { value: 'japan', label: '日本法' },
-  { value: 'us', label: '米国法' },
   { value: 'eu', label: 'EU法' },
-  { value: 'uk', label: '英国法' },
-  { value: 'singapore', label: 'シンガポール法' },
 ];

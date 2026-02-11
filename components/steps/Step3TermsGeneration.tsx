@@ -9,6 +9,7 @@ interface Step3TermsGenerationProps {
   userContext: UserContext;
   riskAnalysisResult: DiagnosisResult | null;
   diagnosisInput: DiagnosisInput | null;
+  chatHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
   onBack: () => void;
   onComplete: () => void;
 }
@@ -19,6 +20,7 @@ export function Step3TermsGeneration({
   userContext,
   riskAnalysisResult,
   diagnosisInput,
+  chatHistory,
   onBack,
   onComplete,
 }: Step3TermsGenerationProps) {
@@ -44,6 +46,7 @@ export function Step3TermsGeneration({
         <DocumentGenerator
           diagnosisResult={selectedType === 'risk-reflected' ? riskAnalysisResult || undefined : undefined}
           diagnosisInput={selectedType === 'risk-reflected' ? diagnosisInput || undefined : undefined}
+          chatHistory={selectedType === 'risk-reflected' ? chatHistory : undefined}
           onClose={onComplete}
         />
       </div>

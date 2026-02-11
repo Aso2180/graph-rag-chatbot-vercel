@@ -10,18 +10,29 @@ import {
 import { DiagnosisResult, DiagnosisInput } from '@/types/diagnosis';
 import { DocumentTypeSelector } from './DocumentTypeSelector';
 import { DocumentPreview } from './DocumentPreview';
+import { DocumentGenerationProgress } from './DocumentGenerationProgress';
 
 interface DocumentGeneratorProps {
   diagnosisResult?: DiagnosisResult;
   diagnosisInput?: DiagnosisInput;
+  chatHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
   onClose?: () => void;
 }
 
 type Step = 'select' | 'info' | 'generating' | 'preview';
 
+type DocumentStatus = 'pending' | 'generating' | 'completed' | 'error';
+
+interface DocumentProgress {
+  type: DocumentType;
+  status: DocumentStatus;
+  error?: string;
+}
+
 export function DocumentGenerator({
   diagnosisResult,
   diagnosisInput,
+  chatHistory,
   onClose,
 }: DocumentGeneratorProps) {
   const [step, setStep] = useState<Step>('select');
@@ -35,6 +46,11 @@ export function DocumentGenerator({
   });
   const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDocument[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // 進捗管理用の状態
+  const [progress, setProgress] = useState<DocumentProgress[]>([]);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<number | undefined>(undefined);
 
   const handleGenerate = async () => {
     if (selectedTypes.length === 0) {
@@ -53,6 +69,15 @@ export function DocumentGenerator({
     setStep('generating');
     setError(null);
 
+    // 進捗状態を初期化
+    const initialProgress: DocumentProgress[] = selectedTypes.map((type) => ({
+      type,
+      status: 'pending',
+    }));
+    setProgress(initialProgress);
+    setCompletedCount(0);
+    setGeneratedDocuments([]);
+
     try {
       const input: DocumentGeneratorInput = {
         documentTypes: selectedTypes,
@@ -63,9 +88,10 @@ export function DocumentGenerator({
         additionalClauses: formData.additionalClauses || undefined,
         diagnosisResult,
         diagnosisInput,
+        chatHistory,
       };
 
-      const response = await fetch('/api/generator/generate', {
+      const response = await fetch('/api/generator/generate-stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,25 +99,66 @@ export function DocumentGenerator({
         body: JSON.stringify(input),
       });
 
-      // レスポンスをテキストとして取得
-      const responseText = await response.text();
-
-      // JSONとしてパース
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch {
-        console.error('Invalid JSON response:', responseText);
-        throw new Error('サーバーからの応答が不正です。再度お試しください。');
-      }
-
       if (!response.ok) {
-        throw new Error(data.error || '文書生成に失敗しました');
+        throw new Error('文書生成に失敗しました');
       }
 
-      const documents: GeneratedDocument[] = data;
-      setGeneratedDocuments(documents);
-      setStep('preview');
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('ストリームの読み取りに失敗しました');
+      }
+
+      const documents: GeneratedDocument[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.slice(6));
+
+              if (eventData.type === 'start') {
+                setEstimatedTimeRemaining(eventData.estimatedTimeRemaining);
+              } else if (eventData.type === 'progress') {
+                // 生成開始
+                setProgress((prev) =>
+                  prev.map((p) =>
+                    p.type === eventData.documentType ? { ...p, status: 'generating' } : p
+                  )
+                );
+              } else if (eventData.type === 'complete') {
+                // 生成完了
+                documents.push(eventData.document);
+                setCompletedCount(eventData.completed);
+                setEstimatedTimeRemaining(eventData.estimatedTimeRemaining);
+                setProgress((prev) =>
+                  prev.map((p) =>
+                    p.type === eventData.documentType
+                      ? { ...p, status: 'completed', error: eventData.error }
+                      : p
+                  )
+                );
+              } else if (eventData.type === 'done') {
+                // 全完了
+                setGeneratedDocuments(documents);
+                setStep('preview');
+              } else if (eventData.type === 'error') {
+                throw new Error(eventData.error || '生成に失敗しました');
+              }
+            } catch (parseError) {
+              console.error('Event parse error:', parseError);
+            }
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
       setStep('info');
@@ -339,13 +406,13 @@ export function DocumentGenerator({
 
         {/* Step 3: Generating */}
         {step === 'generating' && (
-          <div className="py-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4" />
-            <p className="text-lg font-medium text-gray-900">文書を生成しています...</p>
-            <p className="text-sm text-gray-600 mt-2">
-              選択された{selectedTypes.length}種類の文書を生成中です
-            </p>
-          </div>
+          <DocumentGenerationProgress
+            documentTypes={selectedTypes}
+            progress={progress}
+            completed={completedCount}
+            total={selectedTypes.length}
+            estimatedTimeRemaining={estimatedTimeRemaining}
+          />
         )}
 
         {/* Step 4: Preview */}

@@ -213,29 +213,42 @@ export default function ChatInterface() {
         <div className="flex justify-between items-start mb-3">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="text-2xl font-bold text-blue-600 bg-yellow-200 px-2">GAIS [UPDATED]</div>
+              <div className="text-2xl font-bold text-blue-600 bg-yellow-200 px-2">GAIS</div>
               <h1 className="text-xl font-bold bg-green-200 px-1">AI使用上の法的リスク分析</h1>
             </div>
             <p className="text-gray-600 text-sm">生成AI協会会員向け法的リスク検討支援システム</p>
           </div>
-          <div className="flex items-center gap-2">
-            {/* 設定ボタン */}
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              title="詳細設定"
-            >
-              ⚙
-            </button>
-            {/* ダッシュボードボタン */}
-            {memberEmail && (
+          <div className="flex items-center gap-3">
+            {/* キャラクター＆バナー */}
+            <div className="flex flex-col items-center">
+              <img
+                src="/tane-kun.png"
+                alt="タネ君"
+                className="w-16 h-16 object-contain"
+              />
+              <div className="text-[10px] font-medium text-green-700 bg-green-100 px-2 py-1 rounded mt-1 whitespace-nowrap">
+                皆で安全に楽しくAIを活用しよう
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* 設定ボタン */}
               <button
-                onClick={() => setShowDashboard(!showDashboard)}
-                className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors"
+                onClick={() => setShowSettings(!showSettings)}
+                className="p-2 text-xl text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shadow-sm border border-gray-300"
+                title="詳細設定"
               >
-                📊 Dashboard
+                ⚙️
               </button>
-            )}
+              {/* ダッシュボードボタン */}
+              {memberEmail && (
+                <button
+                  onClick={() => setShowDashboard(!showDashboard)}
+                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors"
+                >
+                  📊 Dashboard
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -245,28 +258,38 @@ export default function ChatInterface() {
             <h3 className="text-sm font-bold text-gray-700 mb-3">詳細設定（上級者向け）</h3>
             <p className="text-xs text-gray-500 mb-3">※ 通常は変更不要です</p>
             <div className="space-y-3">
-              <label className="flex items-center gap-3 cursor-pointer">
+              <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-100 transition-colors">
                 <input
                   type="checkbox"
                   checked={useGraphContext}
                   onChange={(e) => setUseGraphContext(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  className="w-5 h-5 mt-0.5 accent-blue-600 cursor-pointer"
                 />
-                <div>
-                  <span className="text-sm font-medium text-gray-700">内部知識ベースを使用</span>
-                  <p className="text-xs text-gray-500">専門知識データベースから関連情報を検索します</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">内部知識ベースを使用</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${useGraphContext ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {useGraphContext ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">専門知識データベースから関連情報を検索します</p>
                 </div>
               </label>
-              <label className="flex items-center gap-3 cursor-pointer">
+              <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-100 transition-colors">
                 <input
                   type="checkbox"
                   checked={useWebSearch}
                   onChange={(e) => setUseWebSearch(e.target.checked)}
-                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  className="w-5 h-5 mt-0.5 accent-green-600 cursor-pointer"
                 />
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Web検索を使用</span>
-                  <p className="text-xs text-gray-500">最新の法規制情報をWeb検索で取得します</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">Web検索を使用</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${useWebSearch ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {useWebSearch ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">最新の法規制情報をWeb検索で取得します</p>
                 </div>
               </label>
             </div>
@@ -329,6 +352,7 @@ export default function ChatInterface() {
             userContext={userContext}
             riskAnalysisResult={diagnosisResult}
             diagnosisInput={diagnosisInput}
+            chatHistory={messages.map(m => ({ role: m.role, content: m.content }))}
             onBack={() => setCurrentStep(2)}
             onComplete={() => {
               setCompletedSteps(prev => new Set([...prev, 3]));

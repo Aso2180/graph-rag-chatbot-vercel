@@ -154,7 +154,7 @@ function buildContext(graphResults: any, webResults: any): string {
 }
 
 function buildPrompt(query: string, context: string): string {
-  return `あなたは法的リスク分析の専門家です。以下の質問に対して、提供された情報を基に詳細で実用的な回答を提供してください。
+  return `あなたは日本の法的リスク分析の専門家です。以下の質問に対して、簡潔で分かりやすい回答を提供してください。
 
 【質問】
 ${query}
@@ -162,17 +162,30 @@ ${query}
 【利用可能な情報】
 ${context}
 
-【回答要件】
-1. 法的リスクを具体的に特定し、分類して説明
-2. 実務的な対策と予防措置を提案
-3. 情報源を適切に参照
-4. 分かりやすい構造化された形式で回答
-5. 必要に応じて最新の法的動向も考慮
-6. 表形式を使用する場合は、必ず完全な表を作成すること
-7. 回答は簡潔にまとめ、冗長な説明は避ける
-8. 特に重要な点は箇条書きや表形式で明確に示す
+【回答の要件】
+1. 回答は200文字以内を目安に、簡潔にまとめること
+2. 最も重要なリスクを1〜2つに絞って説明すること
+3. 具体的な対策を2〜3個に絞って箇条書きで示すこと
+4. 長い説明や詳細な法令解説は避け、実用的なポイントのみを述べること
 
-【重要】回答は必ず完結させ、途中で切れないようにしてください。長い表は簡潔にまとめてください。
+【回答の構成】
+以下の構成で簡潔に回答してください：
+
+**主要なリスク：**
+（1〜2文で最も重要なリスクを説明）
+
+**推奨される対策：**
+- 対策1（1文）
+- 対策2（1文）
+- 対策3（1文、必要な場合のみ）
+
+**関連法令：**
+（該当する主要な法律名のみ、1行）
+
+【重要】
+- 冗長な説明は避けること
+- 見出しや箇条書きを使ってコンパクトに整理すること
+- 全体で200文字程度に収めること
 
 【回答】`;
 }
@@ -180,35 +193,33 @@ ${context}
 function generateLocalResponse(query: string, graphResults: any, webResults: any): string {
   const hasGraphData = graphResults?.graphResults?.length > 0;
   const hasWebData = webResults?.results?.length > 0;
-  
-  let response = `【${query}】に関する法的リスク分析\n\n`;
-  
+
+  let response = `**【${query}】に関する法的リスク**\n\n`;
+
+  response += '**主要なリスク：**\n';
+  response += 'AI生成コンテンツが不正確または業務実態と乖離している場合、法的責任（民事・行政処分）や信頼性の問題が生じる可能性があります。\n\n';
+
+  response += '**推奨される対策：**\n';
+  response += '- 使用前に必ず人間による確認・検証を行う\n';
+  response += '- 利用ガイドラインを策定し、禁止事項を明確化する\n';
+  response += '- 重要な用途では法務専門家に事前相談する\n\n';
+
   if (hasGraphData) {
-    response += '**保存済み文書からの知見:**\n';
-    graphResults.graphResults.slice(0, 2).forEach((result: any, index: number) => {
-      response += `${index + 1}. ${result.content}\n`;
-    });
-    response += '\n';
+    response += '**参考情報：**\n';
+    const firstResult = graphResults.graphResults[0];
+    response += `${firstResult.content.substring(0, 100)}...\n\n`;
   }
-  
+
   if (hasWebData) {
-    response += '**最新動向:**\n';
-    webResults.results.slice(0, 2).forEach((result: any, index: number) => {
-      response += `${index + 1}. ${result.title}\n   ${result.snippet}\n`;
-    });
-    response += '\n';
+    response += '**最新情報：**\n';
+    const firstWebResult = webResults.results[0];
+    response += `${firstWebResult.snippet.substring(0, 100)}...\n\n`;
   }
-  
-  response += '**総合的な推奨事項:**\n';
-  response += '1. 法務専門家との事前相談\n';
-  response += '2. 関連法規制の定期的な確認\n';
-  response += '3. リスク管理プロセスの策定\n';
-  response += '4. 継続的なモニタリング体制の構築\n\n';
-  
-  if (!hasGraphData && !hasWebData) {
-    response += '注: より詳細な分析のために、関連するPDF文書のアップロードをお勧めします。';
-  }
-  
+
+  response += '**関連法令：** 著作権法、個人情報保護法、景品表示法など\n\n';
+
+  response += '※ 具体的な案件は法務専門家にご相談ください。';
+
   return response;
 }
 

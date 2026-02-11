@@ -4,7 +4,7 @@ export type AppStep = 1 | 2 | 3;
 
 export interface UserContext {
   // 基本情報
-  isIndividual: boolean;
+  isIndividual: boolean;  // 社内利用（社外には公開しない）
   isCorporate: boolean;
   hasRegistration: boolean;
   hasExternalAPI: boolean;
@@ -156,7 +156,7 @@ export const userContextToDiagnosisInput = (ctx: UserContext): import('@/types/d
 
   // サービスタイプ文字列
   const serviceTypesStr: string[] = [];
-  if (ctx.isIndividual) serviceTypesStr.push('個人開発');
+  if (ctx.isIndividual) serviceTypesStr.push('社内利用');
   if (ctx.isCorporate) serviceTypesStr.push('法人サービス');
   if (ctx.hasRegistration) serviceTypesStr.push('会員登録あり');
 

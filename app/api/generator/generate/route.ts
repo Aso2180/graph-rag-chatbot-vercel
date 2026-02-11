@@ -104,11 +104,16 @@ function buildDocumentPrompt(
   docType: DocumentType,
   input: DocumentGeneratorInput
 ): string {
+  // 社内利用か社外利用かを判定
+  const isInternalUse = determineIfInternalUse(input.diagnosisInput);
+  const usageType = isInternalUse ? '社内利用' : '社外向けサービス';
+
   const baseContext = `
 会社名: ${input.companyName}
 サービスURL: ${input.serviceUrl || '未設定'}
 連絡先: ${input.contactEmail}
 準拠法: ${getGoverningLawName(input.governingLaw)}
+利用形態: ${usageType}
 `;
 
   let diagnosisContext = '';
@@ -136,16 +141,30 @@ ${input.diagnosisResult.priorityActions.map((a) => `  - ${a}`).join('\n')}
 `;
   }
 
+  // チャット履歴をコンテキストに追加
+  let chatContext = '';
+  if (input.chatHistory && input.chatHistory.length > 0) {
+    console.log('Chat history being used in document generation:', input.chatHistory);
+    chatContext = `
+【ユーザーとの相談内容】
+以下は、ユーザーが法的リスクについて相談した内容です。この内容を規約作成に反映してください：
+${input.chatHistory
+  .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'アシスタント'}: ${msg.content}`)
+  .join('\n')}
+`;
+  }
+
   const additionalContext = input.additionalClauses
     ? `\n【追加で含めたい条項】\n${input.additionalClauses}`
     : '';
 
-  const typeSpecificInstructions = getDocumentTypeInstructions(docType);
+  const typeSpecificInstructions = getDocumentTypeInstructions(docType, isInternalUse);
 
   return `あなたは日本の法務専門家です。以下の情報に基づいて、${DOCUMENT_TYPE_LABELS[docType]}を作成してください。
 
 ${baseContext}
 ${diagnosisContext}
+${chatContext}
 ${additionalContext}
 
 ${typeSpecificInstructions}
@@ -158,13 +177,100 @@ ${typeSpecificInstructions}
 5. 必要に応じて見出し、箇条書きを使用すること
 6. 準拠法に基づいた内容にすること
 ${input.diagnosisResult ? '7. リスク診断結果で特定されたリスクに対応する条項を含めること' : ''}
+${input.chatHistory && input.chatHistory.length > 0 ? '8. **重要**: ユーザーとの相談内容で指摘された懸念事項や質問に対応する条項を含めること' : ''}
+${isInternalUse ? '9. **重要**: これは社内利用向けの規程です。従業員向けの文言（会社への報告義務、懲戒処分の可能性など）を使用してください。「当社は～」ではなく「利用者は～」という形式で記載してください。' : '9. これは社外向けサービスの規約です。サービス提供者と利用者の関係を明確にし、免責事項を含めてください。'}
 
 文書を生成してください:`;
 }
 
-function getDocumentTypeInstructions(docType: DocumentType): string {
-  const instructions: Record<DocumentType, string> = {
-    terms_of_service: `
+// 社内利用かどうかを判定する関数
+function determineIfInternalUse(diagnosisInput: any): boolean {
+  if (!diagnosisInput) return false;
+
+  // targetUsersから判定
+  const targetUsers = diagnosisInput.targetUsers || [];
+  const hasInternalUser = targetUsers.includes('internal');
+  const hasExternalUsers = targetUsers.includes('general_public') || targetUsers.includes('business');
+
+  // useCasesからも判定（フォールバック）
+  const useCases = diagnosisInput.useCases || [];
+  const internalUseCases = ['社内研修・教育', '業務効率化'];
+  const externalUseCases = ['会社案内・サービス紹介', '採用活動', 'マーケティング・広告', '顧客向けサービス', '製品組込み'];
+
+  const hasInternalUseCase = useCases.some((uc: string) => internalUseCases.includes(uc));
+  const hasExternalUseCase = useCases.some((uc: string) => externalUseCases.includes(uc));
+
+  // 社内ユーザーのみ、または社内用途のみの場合はtrue
+  // 社外向けが含まれる場合はfalse
+  return (hasInternalUser || hasInternalUseCase) && !hasExternalUsers && !hasExternalUseCase;
+}
+
+function getDocumentTypeInstructions(docType: DocumentType, isInternalUse: boolean): string {
+  if (isInternalUse) {
+    // 社内利用向けの指示
+    const internalInstructions: Record<DocumentType, string> = {
+      terms_of_service: `
+【社内AI利用規程の構成】
+1. 目的と適用範囲（従業員への適用）
+2. 用語の定義
+3. 利用できるAIツール・サービス
+4. 遵守事項
+   - 情報セキュリティの遵守
+   - 機密情報の取り扱い
+   - 個人情報保護
+5. 禁止事項
+   - 会社の機密情報の無断入力
+   - 著作権侵害
+   - 不適切な利用
+6. 利用者の責任
+   - AI出力の確認・検証義務
+   - 社内外への損害防止義務
+   - 問題発生時の報告義務
+7. 違反時の対応
+   - 懲戒処分の可能性
+   - 損害賠償責任
+8. 教育・研修
+9. 規程の改定
+10. 問い合わせ先
+
+**重要**: 従業員向けの文言を使用すること
+- 「利用者は社内外に損害を与えないよう充分な注意を払い使用すること」
+- 「万一損害が発生する可能性がある場合には速やかに会社に報告すること」
+- 「本人の故意または過失により会社に重大な損害を与えた場合には懲戒処分の対象となる可能性があります」
+- 「当社は～」という表現は避け、「利用者（従業員）は～」という表現を使用すること
+`,
+      privacy_policy: `
+【社内データ取り扱い規程の構成】
+社内向けなので、従業員がAIツールを使用する際のデータ保護ルールを記載します。
+1. 個人情報・機密情報の定義
+2. AIツールへのデータ入力時の注意事項
+3. 外部サービスへのデータ送信の制限
+4. 違反時の対応
+`,
+      ai_disclaimer: `
+【社内AI利用における注意事項】
+従業員向けに、AI利用時の責任と注意点を明記します。
+- AI出力を盲信せず、必ず確認すること
+- 重要な判断には専門家の意見を求めること
+- 問題があれば直ちに報告すること
+`,
+      internal_risk_report: `
+【社内リスクレポート】
+経営層・管理職向けのリスク評価レポートを作成します。
+`,
+      user_guidelines: `
+【従業員向けAI利用ガイドライン】
+わかりやすい実務的なガイドラインを作成します。
+- 推奨される使い方
+- 避けるべき使い方
+- トラブル時の対応
+`,
+    };
+    return internalInstructions[docType] || '';
+  } else {
+    // 社外向けの指示
+    const externalInstructions: Record<DocumentType, string> = {
+      terms_of_service: `
 【利用規約の構成】
 1. 総則（適用範囲、用語の定義）
 2. サービスの内容と利用条件
@@ -172,6 +278,7 @@ function getDocumentTypeInstructions(docType: DocumentType): string {
 4. 禁止事項
 5. 知的財産権
 6. 免責事項と責任の制限
+   - **「当社は、本サービスの利用に起因して利用者に生じた損害について、当社の故意または重過失による場合を除き、一切の責任を負いません。」という形式で記載**
 7. サービスの変更・中断・終了
 8. 利用料金（該当する場合）
 9. 個人情報の取り扱い（プライバシーポリシーへの参照）
@@ -184,7 +291,7 @@ function getDocumentTypeInstructions(docType: DocumentType): string {
 - AIの利用制限と禁止用途
 - ユーザーコンテンツの取り扱い
 `,
-    privacy_policy: `
+      privacy_policy: `
 【プライバシーポリシーの構成】
 1. はじめに（事業者情報）
 2. 収集する個人情報の種類
@@ -204,7 +311,7 @@ function getDocumentTypeInstructions(docType: DocumentType): string {
 - 安全管理措置
 - 第三者提供の有無と条件
 `,
-    ai_disclaimer: `
+      ai_disclaimer: `
 【AI免責事項の構成】
 1. AI技術の利用について
 2. AI出力の性質と限界
@@ -220,8 +327,9 @@ function getDocumentTypeInstructions(docType: DocumentType): string {
 6. 知的財産権に関する注意
 7. データの取り扱い
 8. 責任の制限
+   - **「当社は責任を負いません」という形式で記載**
 `,
-    internal_risk_report: `
+      internal_risk_report: `
 【社内リスクレポートの構成】
 1. エグゼクティブサマリー
 2. 対象サービス/プロジェクト概要
@@ -242,7 +350,7 @@ function getDocumentTypeInstructions(docType: DocumentType): string {
 
 経営層への報告を想定した簡潔かつ網羅的な内容にすること。
 `,
-    user_guidelines: `
+      user_guidelines: `
 【ユーザーガイドラインの構成】
 1. はじめに
    - サービスの目的
@@ -262,9 +370,9 @@ function getDocumentTypeInstructions(docType: DocumentType): string {
 
 ユーザーフレンドリーで分かりやすい文章にすること。
 `,
-  };
-
-  return instructions[docType];
+    };
+    return externalInstructions[docType] || '';
+  }
 }
 
 function getGoverningLawName(law: string): string {
@@ -293,8 +401,170 @@ function generateFallbackDocument(
   docType: DocumentType,
   input: DocumentGeneratorInput
 ): GeneratedDocument {
-  const templates: Record<DocumentType, string> = {
-    terms_of_service: `# 利用規約
+  const isInternalUse = determineIfInternalUse(input.diagnosisInput);
+
+  if (isInternalUse) {
+    // 社内利用向けテンプレート
+    const internalTemplates: Record<DocumentType, string> = {
+      terms_of_service: `# AI利用規程（社内向け）
+
+## 第1条（目的）
+この規程は、${input.companyName}（以下「会社」）の従業員等が業務においてAIツールを利用する際の適切な運用を確保し、情報セキュリティ、法令遵守、および業務品質の維持を目的として定めるものです。
+
+## 第2条（適用範囲）
+本規程は、会社の従業員、契約社員、派遣社員等、会社の業務に従事するすべての者（以下「利用者」）に適用されます。
+
+## 第3条（定義）
+本規程において使用する用語の定義は、以下の通りとします。
+1. 「AIツール」とは、生成AI、機械学習、自然言語処理等の人工知能技術を用いたツールおよびサービスをいいます。
+2. 「機密情報」とは、会社の営業秘密、顧客情報、個人情報、開発中のプロジェクト情報等をいいます。
+
+## 第4条（遵守事項）
+利用者は、AIツールを利用する際、以下の事項を遵守しなければなりません。
+1. 会社が指定または許可したAIツールのみを使用すること
+2. 業務目的の範囲内でのみ利用すること
+3. 情報セキュリティポリシーを遵守すること
+4. AI出力の内容を必ず確認・検証すること
+5. 重要な判断にはAI出力のみに依存せず、必要に応じて専門家の意見を求めること
+
+## 第5条（禁止事項）
+利用者は、以下の行為を行ってはなりません。
+1. 機密情報、個人情報、営業秘密を無断でAIツールに入力すること
+2. 第三者の知的財産権を侵害する行為
+3. 法令または会社の規程に違反する行為
+4. AIツールを利用して生成した情報を無断で社外に公開すること
+5. 不正確な情報や誤解を招く情報を故意に生成・利用すること
+
+## 第6条（利用者の責任）
+1. 利用者は、AIツールの利用において、社内外に損害を与えないよう充分な注意を払い使用しなければなりません。
+2. 利用者は、AIツールの利用により問題が発生する可能性がある場合、または実際に問題が発生した場合には、速やかに上司および情報システム部門に報告しなければなりません。
+3. 利用者は、AI出力の正確性、適法性、妥当性について自ら確認・検証する責任を負います。
+
+## 第7条（懲戒処分）
+利用者が本規程に違反し、故意または過失により会社に重大な損害を与えた場合、または損害を与える恐れのある行為を行った場合には、就業規則に基づき懲戒処分の対象となることがあります。
+
+## 第8条（教育・研修）
+会社は、利用者に対して、AIツールの適切な利用方法、リスク、本規程の内容等に関する教育・研修を実施します。
+
+## 第9条（規程の改定）
+本規程は、法令の改正、技術の進展、社会情勢の変化等に応じて、適宜見直し・改定を行います。
+
+## 第10条（お問い合わせ）
+本規程に関するお問い合わせは、以下までお願いいたします。
+${input.companyName}
+メールアドレス: ${input.contactEmail}
+
+制定日: ${new Date().toLocaleDateString('ja-JP')}
+`,
+      privacy_policy: `# 個人情報・機密情報の取り扱いに関する規程（社内向け）
+
+${input.companyName}の従業員等がAIツールを利用する際の、個人情報および機密情報の取り扱いについて定めます。
+
+## 1. 適用範囲
+本規程は、会社の従業員等がAIツールに情報を入力する際に適用されます。
+
+## 2. 禁止事項
+以下の情報をAIツールに入力してはなりません。
+- 顧客の個人情報（氏名、住所、電話番号、メールアドレス等）
+- 社内の機密情報、営業秘密
+- 開発中のプロジェクト情報
+- 契約書や秘密保持契約の対象となる情報
+- 未公開の財務情報
+
+## 3. 許可される情報
+以下の情報は、業務上必要な範囲で入力が許可されます。
+- 公開情報
+- 匿名化・仮名化された情報
+- 一般的な知識や技術に関する質問
+
+## 4. 違反時の対応
+本規程に違反した場合、懲戒処分の対象となるほか、情報漏洩による損害について賠償責任を負う場合があります。
+
+## 5. お問い合わせ
+${input.companyName}
+メールアドレス: ${input.contactEmail}
+
+制定日: ${new Date().toLocaleDateString('ja-JP')}
+`,
+      ai_disclaimer: `# AI利用における注意事項（社内向け）
+
+## 1. AI出力の性質
+AIツールの出力は自動生成されたものであり、必ずしも正確ではありません。
+
+## 2. 利用者の責任
+- AI出力を盲信せず、必ず内容を確認・検証してください
+- 重要な判断や意思決定には、AI出力のみに依存しないでください
+- 法律、財務、医療等の専門的事項については、専門家に相談してください
+
+## 3. 問題発生時の対応
+AIツールの利用により問題が発生した場合、または発生する可能性がある場合は、速やかに上司および関係部門に報告してください。
+
+## 4. リスク
+- ハルシネーション（誤った情報の生成）
+- 著作権侵害のリスク
+- 情報漏洩のリスク
+
+制定日: ${new Date().toLocaleDateString('ja-JP')}
+`,
+      internal_risk_report: `# 法的リスク評価レポート（社内向け）
+
+## エグゼクティブサマリー
+本レポートは、当社のAI利用に関する法的リスクの評価と対策を取りまとめたものです。
+
+## 1. 評価対象
+- 提供元: ${input.companyName}
+- 評価日: ${new Date().toLocaleDateString('ja-JP')}
+
+## 2. 主なリスク
+- 情報漏洩リスク
+- 著作権侵害リスク
+- 個人情報保護法違反リスク
+- AI出力の誤用によるリスク
+
+## 3. 推奨対策
+1. 社内規程の整備と周知徹底
+2. 従業員教育の実施
+3. 利用ログの監視体制構築
+4. 定期的なリスク評価の実施
+
+制定日: ${new Date().toLocaleDateString('ja-JP')}
+`,
+      user_guidelines: `# AI利用ガイドライン（従業員向け）
+
+## はじめに
+このガイドラインは、従業員がAIツールを安全かつ効果的に利用するための実務的な指針です。
+
+## 推奨される使い方
+- 業務効率化のための補助ツールとして活用
+- アイデアの壁打ち相手として利用
+- 文書の下書き作成に利用（ただし必ず確認・修正すること）
+
+## 避けるべき使い方
+- 機密情報の入力
+- 最終成果物としてそのまま使用
+- 専門的判断の代替として使用
+
+## トラブル時の対応
+問題が発生した場合は、直ちに上司に報告し、指示を仰いでください。
+
+## お問い合わせ
+${input.companyName}
+メールアドレス: ${input.contactEmail}
+
+制定日: ${new Date().toLocaleDateString('ja-JP')}
+`,
+    };
+
+    return {
+      type: docType,
+      title: DOCUMENT_TYPE_LABELS[docType],
+      content: internalTemplates[docType] || '（テンプレートがありません）',
+      generatedAt: new Date().toISOString(),
+    };
+  } else {
+    // 社外向けテンプレート
+    const externalTemplates: Record<DocumentType, string> = {
+      terms_of_service: `# 利用規約
 
 ## 第1条（適用）
 この利用規約（以下「本規約」）は、${input.companyName}（以下「当社」）が提供するサービス（以下「本サービス」）の利用条件を定めるものです。
@@ -319,7 +589,7 @@ function generateFallbackDocument(
 
 ## 第5条（免責事項）
 1. 当社は、本サービスの内容について、その正確性、完全性、有用性等について何ら保証するものではありません。
-2. 当社は、本サービスの利用により生じた損害について、当社の故意または重過失による場合を除き、責任を負いません。
+2. 当社は、本サービスの利用に起因して利用者に生じた損害について、当社の故意または重過失による場合を除き、一切の責任を負いません。
 
 ## 第6条（準拠法・管轄裁判所）
 本規約の解釈にあたっては、${getGoverningLawName(input.governingLaw)}を準拠法とします。
@@ -332,7 +602,7 @@ ${input.serviceUrl ? `URL: ${input.serviceUrl}` : ''}
 
 制定日: ${new Date().toLocaleDateString('ja-JP')}
 `,
-    privacy_policy: `# プライバシーポリシー
+      privacy_policy: `# プライバシーポリシー
 
 ${input.companyName}（以下「当社」）は、本サービスにおける利用者の個人情報の取り扱いについて、以下のとおりプライバシーポリシーを定めます。
 
@@ -372,7 +642,7 @@ ${input.companyName}
 
 制定日: ${new Date().toLocaleDateString('ja-JP')}
 `,
-    ai_disclaimer: `# AI機能に関する免責事項
+      ai_disclaimer: `# AI機能に関する免責事項
 
 ## 1. AI技術の利用について
 本サービスでは、人工知能（AI）技術を活用した機能を提供しています。利用者は、本免責事項に同意の上、AI機能をご利用ください。
@@ -397,13 +667,13 @@ AIは、事実に基づかない情報（ハルシネーション）を生成す
 法律、医療、金融、税務等の専門的な事項については、AI出力を利用する前に、必ず各分野の専門家にご相談ください。
 
 ## 5. 責任の制限
-当社は、AI機能の利用により生じたいかなる損害についても、法令で許容される最大限の範囲で責任を負いません。
+当社は、AI機能の利用により生じたいかなる損害についても、当社の故意または重過失による場合を除き、一切の責任を負いません。
 
 ${input.companyName}
 連絡先: ${input.contactEmail}
 制定日: ${new Date().toLocaleDateString('ja-JP')}
 `,
-    internal_risk_report: `# 法的リスク評価レポート
+      internal_risk_report: `# 法的リスク評価レポート
 
 ## エグゼクティブサマリー
 ${input.diagnosisResult?.executiveSummary || '本レポートは、当社AIサービスに関する法的リスクの評価と対策を取りまとめたものです。'}
@@ -449,7 +719,7 @@ ${
 ---
 本レポートは情報提供を目的としており、法的アドバイスではありません。
 `,
-    user_guidelines: `# ユーザーガイドライン
+      user_guidelines: `# ユーザーガイドライン
 
 ## はじめに
 このガイドラインは、${input.companyName}が提供するAIサービスを安全かつ効果的にご利用いただくための指針です。
@@ -490,12 +760,13 @@ ${input.serviceUrl ? `サービスURL: ${input.serviceUrl}` : ''}
 
 ${input.companyName}
 `,
-  };
+    };
 
-  return {
-    type: docType,
-    title: DOCUMENT_TYPE_LABELS[docType],
-    content: templates[docType],
-    generatedAt: new Date().toISOString(),
-  };
+    return {
+      type: docType,
+      title: DOCUMENT_TYPE_LABELS[docType],
+      content: externalTemplates[docType],
+      generatedAt: new Date().toISOString(),
+    };
+  }
 }

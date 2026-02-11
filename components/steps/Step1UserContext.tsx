@@ -18,17 +18,20 @@ interface CheckboxItemProps {
   onChange: (checked: boolean) => void;
   label: string;
   tooltip?: string;
+  disabled?: boolean;
 }
 
-function CheckboxItem({ id, checked, onChange, label, tooltip }: CheckboxItemProps) {
+function CheckboxItem({ id, checked, onChange, label, tooltip, disabled = false }: CheckboxItemProps) {
   return (
     <label
       htmlFor={id}
       className={`
-        relative flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all
-        ${checked
-          ? 'border-blue-500 bg-blue-50'
-          : 'border-gray-200 bg-white hover:border-gray-300'}
+        relative flex items-center p-3 rounded-lg border-2 transition-all
+        ${disabled
+          ? 'cursor-not-allowed opacity-50 bg-gray-100 border-gray-200'
+          : checked
+          ? 'border-blue-500 bg-blue-50 cursor-pointer'
+          : 'border-gray-200 bg-white hover:border-gray-300 cursor-pointer'}
       `}
       title={tooltip}
     >
@@ -37,9 +40,10 @@ function CheckboxItem({ id, checked, onChange, label, tooltip }: CheckboxItemPro
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+        disabled={disabled}
+        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:cursor-not-allowed"
       />
-      <span className="ml-2 text-sm font-medium text-gray-700">{label}</span>
+      <span className={`ml-2 text-sm font-medium ${disabled ? 'text-gray-400' : 'text-gray-700'}`}>{label}</span>
       {tooltip && (
         <span className="ml-1 text-gray-400 text-xs" title={tooltip}>?</span>
       )}
@@ -98,9 +102,24 @@ export function Step1UserContext({
           <CheckboxItem
             id="basic-individual"
             checked={userContext.isIndividual}
-            onChange={(checked) => onUpdate({ isIndividual: checked })}
-            label="個人開発者"
-            tooltip="個人でAIサービスを開発・運営"
+            onChange={(checked) => {
+              onUpdate({
+                isIndividual: checked,
+                // 社内利用をONにしたら、社外向けの利用目的をすべてクリア
+                ...(checked && {
+                  usagePurposes: {
+                    ...userContext.usagePurposes,
+                    companyIntroduction: false,
+                    recruitment: false,
+                    marketing: false,
+                    customerService: false,
+                    productIntegration: false,
+                  }
+                })
+              });
+            }}
+            label="社内利用"
+            tooltip="社内のみでAIを利用（社外には公開しない）"
           />
           <CheckboxItem
             id="basic-corporate"
@@ -193,6 +212,7 @@ export function Step1UserContext({
             onChange={(checked) => updateUsagePurpose('companyIntroduction', checked)}
             label="会社案内・サービス紹介"
             tooltip="コーポレートサイト、サービス紹介、営業資料等"
+            disabled={userContext.isIndividual}
           />
           <CheckboxItem
             id="purpose-recruitment"
@@ -200,6 +220,7 @@ export function Step1UserContext({
             onChange={(checked) => updateUsagePurpose('recruitment', checked)}
             label="採用・リクルート"
             tooltip="採用サイト、仕事内容紹介、社員インタビュー等"
+            disabled={userContext.isIndividual}
           />
           <CheckboxItem
             id="purpose-marketing"
@@ -207,6 +228,7 @@ export function Step1UserContext({
             onChange={(checked) => updateUsagePurpose('marketing', checked)}
             label="マーケティング・広告"
             tooltip="広告素材、SNS投稿、プロモーション動画等"
+            disabled={userContext.isIndividual}
           />
           <CheckboxItem
             id="purpose-customer"
@@ -214,6 +236,7 @@ export function Step1UserContext({
             onChange={(checked) => updateUsagePurpose('customerService', checked)}
             label="顧客向けサービス提供"
             tooltip="ユーザーへのAI生成コンテンツ直接提供"
+            disabled={userContext.isIndividual}
           />
           <CheckboxItem
             id="purpose-product"
@@ -221,6 +244,7 @@ export function Step1UserContext({
             onChange={(checked) => updateUsagePurpose('productIntegration', checked)}
             label="商品・製品への組込み"
             tooltip="製品・サービスの一部としてAI生成物を使用"
+            disabled={userContext.isIndividual}
           />
         </div>
       </div>
@@ -250,7 +274,7 @@ export function Step1UserContext({
             />
             <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-xs text-blue-800">
-                💡 <strong>gais@test.com</strong>：全会員共通のデフォルトドキュメント（AI法的リスク資料）を閲覧できます
+                💡 <strong>gais@test.com</strong>：全会員共通のデフォルトドキュメント（AI法的リスク資料）をDashboardから閲覧できます
               </p>
               <p className="text-xs text-blue-700 mt-1">
                 ※ 自分のPDFをアップロードする場合は、ご自身のメールアドレスに変更してください
