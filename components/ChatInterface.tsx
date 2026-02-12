@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import LegalDisclaimer from './LegalDisclaimer';
 import MemberDashboard from './MemberDashboard';
 import { validateUploadPermission } from '@/lib/member/validation';
@@ -221,10 +222,13 @@ export default function ChatInterface() {
           <div className="flex items-center justify-end gap-2 sm:gap-3 flex-shrink-0">
             {/* キャラクター＆バナー */}
             <div className="hidden sm:flex flex-col items-center">
-              <img
+              <Image
                 src="/tane-kun.png"
                 alt="タネ君"
+                width={64}
+                height={64}
                 className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
+                priority
               />
               <div className="text-[9px] sm:text-[10px] font-medium text-green-700 bg-green-100 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded mt-1 whitespace-nowrap">
                 皆で安全に楽しくAIを活用しよう
