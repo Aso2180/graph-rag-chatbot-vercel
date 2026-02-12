@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 
 export async function POST(request: NextRequest) {
+  console.log('=== Web Search API Called ===');
+  console.log('Timestamp:', new Date().toISOString());
+
   try {
     const { query, context } = await request.json();
+    console.log('Search query:', query);
 
     if (!query) {
       return NextResponse.json(
@@ -34,6 +38,12 @@ export async function POST(request: NextRequest) {
       results: relevantResults,
       resultCount: relevantResults.length,
       searchTimestamp: new Date().toISOString()
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
 
   } catch (error) {
@@ -75,6 +85,7 @@ async function performWebSearch(query: string): Promise<any[]> {
     });
     
     if (TAVILY_API_KEY) {
+      console.log('Calling TAVILY API with query:', query);
       const tavilyResponse = await axios.post('https://api.tavily.com/search', {
         api_key: TAVILY_API_KEY,
         query: query,
@@ -83,6 +94,7 @@ async function performWebSearch(query: string): Promise<any[]> {
         include_answer: true,
         include_raw_content: false
       });
+      console.log('TAVILY API call completed');
       
       console.log('Tavily API response:', {
         status: tavilyResponse.status,
@@ -93,7 +105,8 @@ async function performWebSearch(query: string): Promise<any[]> {
       if ((tavilyResponse.data as any).results) {
         return (tavilyResponse.data as any).results.map((result: any) => ({
           title: result.title,
-          link: result.url,
+          url: result.url,
+          content: result.content || result.snippet || '',
           snippet: result.content || result.snippet || '',
           displayLink: new URL(result.url).hostname
         }));
@@ -116,22 +129,26 @@ async function performWebSearch(query: string): Promise<any[]> {
 
 function generateDummySearchResults(query: string): any[] {
   // 開発用ダミーデータ
+  console.log('Using dummy search results (TAVILY_API_KEY not configured)');
   return [
     {
       title: `${query}に関する最新の法的ガイドライン - 法務省`,
-      link: 'https://example.com/legal-guidelines',
+      url: 'https://example.com/legal-guidelines',
+      content: '最新の法的要件と規制に関する包括的なガイドライン。AI技術の利用における法的リスクについて詳細に解説。',
       snippet: '最新の法的要件と規制に関する包括的なガイドライン。AI技術の利用における法的リスクについて詳細に解説。',
       displayLink: 'example.com'
     },
     {
       title: `AI生成コンテンツの著作権問題 - 知的財産法の観点`,
-      link: 'https://example.com/ai-copyright',
+      url: 'https://example.com/ai-copyright',
+      content: 'AI によって生成されたコンテンツの著作権の帰属と商業利用時の注意点について専門家が解説。',
       snippet: 'AI によって生成されたコンテンツの著作権の帰属と商業利用時の注意点について専門家が解説。',
       displayLink: 'example.com'
     },
     {
       title: `企業のAI活用における コンプライアンス チェックリスト`,
-      link: 'https://example.com/compliance-checklist',
+      url: 'https://example.com/compliance-checklist',
+      content: '企業がAI技術を導入する際の法的リスクを最小化するための実践的なチェックリスト。',
       snippet: '企業がAI技術を導入する際の法的リスクを最小化するための実践的なチェックリスト。',
       displayLink: 'example.com'
     }

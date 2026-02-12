@@ -62,7 +62,13 @@ export async function POST(request: NextRequest) {
     const totalTime = Date.now() - startTime;
     console.log(`Analysis completed in ${analysisTime}ms, total time: ${totalTime}ms`);
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
   } catch (error) {
     console.error('=== Diagnosis API Error ===');
     console.error('Error:', error);
@@ -122,6 +128,9 @@ async function searchRelevantData(input: DiagnosisInput): Promise<any> {
 }
 
 async function searchWebData(input: DiagnosisInput): Promise<any> {
+  console.log('=== searchWebData called ===');
+  console.log('TAVILY_API_KEY status:', process.env.TAVILY_API_KEY ? 'SET' : 'NOT SET');
+
   try {
     // 入力情報から検索クエリを構築
     const searchTerms = [
@@ -136,22 +145,34 @@ async function searchWebData(input: DiagnosisInput): Promise<any> {
     const baseUrl = getBaseUrl();
     console.log('Web search base URL:', baseUrl);
 
+    if (!baseUrl) {
+      console.error('Base URL is empty! Cannot call web-search API');
+      return null;
+    }
+
+    const searchQuery = `AI 法的リスク 規制 ${searchTerms}`;
+    console.log('Calling web-search API with query:', searchQuery);
+
     const response = await axios.post(`${baseUrl}/api/web-search`, {
-      query: `AI 法的リスク 規制 ${searchTerms}`,
+      query: searchQuery,
       context: 'legal-risk-diagnosis',
     }, {
       timeout: 20000, // 20秒のタイムアウト
     });
 
     const webData = response.data as any;
-    console.log('Web search successful, results:', webData?.results?.length || 0);
+    console.log('Web search successful!');
+    console.log('Results count:', webData?.results?.length || 0);
+    console.log('Result structure check:', webData?.results?.[0] ? Object.keys(webData.results[0]) : 'No results');
     return webData;
   } catch (error) {
-    console.error('Web search failed:', error);
+    console.error('=== Web search failed ===');
+    console.error('Error:', error);
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as any;
-      console.error('Web search error details:', axiosError.message);
+      console.error('Error message:', axiosError.message);
       console.error('Response status:', axiosError.response?.status);
+      console.error('Response data:', axiosError.response?.data);
     }
     return null;
   }
@@ -462,16 +483,21 @@ function getBaseUrl(): string {
   // Vercel環境の場合
   if (process.env.VERCEL_URL) {
     // VERCEL_URLにはプロトコルが含まれていないため、httpsを追加
-    return `https://${process.env.VERCEL_URL}`;
+    const url = `https://${process.env.VERCEL_URL}`;
+    console.log('Using VERCEL_URL:', url);
+    return url;
   }
   // 開発環境の場合
   if (process.env.NODE_ENV === 'development') {
+    console.log('Using development URL: http://localhost:3000');
     return 'http://localhost:3000';
   }
-  // その他の本番環境（カスタムドメインなど）
-  if (typeof window !== 'undefined') {
-    return window.location.origin;
+  // カスタムドメインの場合
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    console.log('Using NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
+    return process.env.NEXT_PUBLIC_APP_URL;
   }
-  // フォールバック: 環境変数から取得
-  return process.env.NEXT_PUBLIC_APP_URL || '';
+  // デフォルト（本番環境の想定URLを使用）
+  console.log('Using default production URL');
+  return 'https://graph-rag-chatbot-vercel-01.vercel.app';
 }
