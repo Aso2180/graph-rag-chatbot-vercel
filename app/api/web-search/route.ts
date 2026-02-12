@@ -168,7 +168,13 @@ function filterRelevantResults(results: any[], originalQuery: string): any[] {
 
 async function saveResultsToKnowledgeGraph(results: any[], query: string): Promise<void> {
   try {
-    const response = await axios.post(`${getBaseUrl()}/api/learn`, {
+    // 本番環境では固定URLを使用（VERCEL_URLのプレビュー問題を回避）
+    const baseUrl = process.env.VERCEL_ENV === 'production'
+      ? 'https://graph-rag-chatbot-vercel-01.vercel.app'
+      : getBaseUrl();
+    console.log('Saving to knowledge graph, base URL:', baseUrl);
+
+    const response = await axios.post(`${baseUrl}/api/learn`, {
       searchResults: results,
       query: query,
       source: 'web-search-auto'
