@@ -106,10 +106,12 @@ async function searchRelevantData(input: DiagnosisInput): Promise<any> {
       .filter(Boolean)
       .join(' ');
 
-    const baseUrl = getBaseUrl();
-    console.log('Graph search base URL:', baseUrl);
+    // 内部API呼び出し用のベースURLを取得
+    const baseUrl = getInternalApiBaseUrl();
+    const apiUrl = `${baseUrl}/api/graph-search`;
+    console.log('Calling graph search API:', apiUrl);
 
-    const response = await axios.post(`${baseUrl}/api/graph-search`, {
+    const response = await axios.post(apiUrl, {
       query: `AI法的リスク ${searchTerms}`,
       context: 'legal-risk-diagnosis',
     }, {
@@ -142,18 +144,14 @@ async function searchWebData(input: DiagnosisInput): Promise<any> {
       .filter(Boolean)
       .join(' ');
 
-    const baseUrl = getBaseUrl();
-    console.log('Web search base URL:', baseUrl);
-
-    if (!baseUrl) {
-      console.error('Base URL is empty! Cannot call web-search API');
-      return null;
-    }
-
+    // 内部API呼び出し用のベースURLを取得
+    const baseUrl = getInternalApiBaseUrl();
+    const apiUrl = `${baseUrl}/api/web-search`;
     const searchQuery = `AI 法的リスク 規制 ${searchTerms}`;
-    console.log('Calling web-search API with query:', searchQuery);
+    console.log('Calling web-search API:', apiUrl);
+    console.log('Search query:', searchQuery);
 
-    const response = await axios.post(`${baseUrl}/api/web-search`, {
+    const response = await axios.post(apiUrl, {
       query: searchQuery,
       context: 'legal-risk-diagnosis',
     }, {
@@ -481,25 +479,34 @@ function generateFallbackResult(
   };
 }
 
-function getBaseUrl(): string {
-  // Vercel環境の場合
+// 内部API呼び出し専用：本番環境では固定URL、それ以外ではVERCEL_URLを使用
+function getInternalApiBaseUrl(): string {
+  // 本番環境では固定の本番URLを使用（VERCEL_URLはプレビューURLの可能性があるため）
+  if (process.env.VERCEL_ENV === 'production') {
+    const productionUrl = 'https://graph-rag-chatbot-vercel-01.vercel.app';
+    console.log('Using production URL for internal API calls:', productionUrl);
+    return productionUrl;
+  }
+
+  // プレビュー環境ではVERCEL_URLを使用
   if (process.env.VERCEL_URL) {
-    // VERCEL_URLにはプロトコルが含まれていないため、httpsを追加
     const url = `https://${process.env.VERCEL_URL}`;
-    console.log('Using VERCEL_URL:', url);
+    console.log('Using VERCEL_URL for internal API calls:', url);
     return url;
   }
-  // 開発環境の場合
+
+  // 開発環境
   if (process.env.NODE_ENV === 'development') {
     console.log('Using development URL: http://localhost:3000');
     return 'http://localhost:3000';
   }
-  // カスタムドメインの場合
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    console.log('Using NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
-    return process.env.NEXT_PUBLIC_APP_URL;
-  }
-  // デフォルト（本番環境の想定URLを使用）
-  console.log('Using default production URL');
+
+  // フォールバック
+  console.log('Using fallback production URL');
   return 'https://graph-rag-chatbot-vercel-01.vercel.app';
+}
+
+// 外部向けURL取得（既存のgetBaseUrl関数は削除せず残す）
+function getBaseUrl(): string {
+  return getInternalApiBaseUrl();
 }
