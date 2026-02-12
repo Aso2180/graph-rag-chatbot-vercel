@@ -16,8 +16,14 @@ export async function POST(request: NextRequest) {
 
     console.log('Processing diagnosis for:', input.appName || 'Unnamed App');
 
-    // GraphRAGで関連情報を検索
-    const graphResults = await searchRelevantData(input);
+    // GraphRAGで関連情報を検索（タイムアウトしても続行）
+    const graphResults = await Promise.race([
+      searchRelevantData(input),
+      new Promise<null>((resolve) => setTimeout(() => {
+        console.log('Graph search timeout, proceeding without graph data');
+        resolve(null);
+      }, 20000)) // 20秒でタイムアウト
+    ]);
 
     // Claude APIでリスク分析を実行
     const result = await analyzeLegalRisks(input, graphResults);
@@ -53,7 +59,7 @@ async function searchRelevantData(input: DiagnosisInput): Promise<any> {
       query: `AI法的リスク ${searchTerms}`,
       context: 'legal-risk-diagnosis',
     }, {
-      timeout: 10000, // 10秒のタイムアウト
+      timeout: 15000, // 15秒のタイムアウト
     });
     return response.data;
   } catch (error) {
@@ -88,7 +94,7 @@ async function analyzeLegalRisks(
           messages: [{ role: 'user', content: prompt }],
         },
         {
-          timeout: 60000, // 60秒のタイムアウト
+          timeout: 90000, // 90秒のタイムアウト
         }
       );
 

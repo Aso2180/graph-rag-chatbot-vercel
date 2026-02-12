@@ -4,10 +4,13 @@
       "maxDuration": 300
     },
     "app/api/diagnosis/analyze/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "app/api/chat/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/graph-search/route.ts": {
+      "maxDuration": 30
     }
   }
 }
