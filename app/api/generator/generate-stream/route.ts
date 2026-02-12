@@ -63,8 +63,9 @@ export async function POST(request: NextRequest) {
         });
 
         const startTime = Date.now();
-        // 並行処理数を2に制限（APIレート制限とタイムアウト対策）
-        const MAX_CONCURRENT = 2;
+        // 並行処理数を3に設定（300秒制限内で5文書を高速生成）
+        // 計算: 3文書×80秒 + 2文書×80秒 = 160秒 < 300秒
+        const MAX_CONCURRENT = 3;
 
         for (let i = 0; i < input.documentTypes.length; i += MAX_CONCURRENT) {
           const batch = input.documentTypes.slice(i, i + MAX_CONCURRENT);
@@ -159,8 +160,9 @@ async function generateDocument(
       const anthropic = getAnthropicClient();
       const prompt = buildDocumentPrompt(docType, input);
 
-      // 文書タイプによって最大トークン数を調整（生成時間の最適化）
-      const maxTokens = docType === 'internal_risk_report' ? 4000 : 8000;
+      // 文書タイプによって最大トークン数を調整（簡潔な文書生成）
+      // 300秒制限内に5文書生成するため、トークン数とタイムアウトを短縮
+      const maxTokens = docType === 'internal_risk_report' ? 2000 : 3500;
 
       const response = await anthropic.messages.create(
         {
@@ -169,7 +171,7 @@ async function generateDocument(
           messages: [{ role: 'user', content: prompt }],
         },
         {
-          timeout: 120000, // 120秒のタイムアウトを設定
+          timeout: 80000, // 80秒のタイムアウト（並列2文書×3バッチ = 240秒 < 300秒）
         }
       );
 
