@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/neo4j/client';
 
 export async function POST(request: NextRequest) {
+  console.log('=== Graph Search API Called ===');
+  console.log('Timestamp:', new Date().toISOString());
+
   try {
     const { query, context } = await request.json();
+    console.log('Search query:', query);
 
     if (!query) {
       return NextResponse.json(
@@ -24,6 +28,12 @@ export async function POST(request: NextRequest) {
       relatedEntities,
       resultCount: graphResults.length,
       searchTimestamp: new Date().toISOString()
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
 
   } catch (error) {

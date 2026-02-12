@@ -20,11 +20,16 @@ export class Neo4jQueryAPIClient {
   private auth: string;
 
   constructor() {
-    const uri = env.NEO4J_URI || 'neo4j+s://bf116132.databases.neo4j.io';
+    const uri = env.NEO4J_URI || 'neo4j+s://12cc4171.databases.neo4j.io';
     const username = env.NEO4J_USER || 'neo4j';
     const password = env.NEO4J_PASSWORD || '';
-    
-    console.log('Neo4j URI:', uri);
+
+    console.log('Neo4j Configuration Check:', {
+      uri,
+      username,
+      passwordSet: !!password,
+      passwordLength: password?.length || 0
+    });
     
     // neo4j+s://bf116132.databases.neo4j.io から https://bf116132.databases.neo4j.io/db/neo4j/query/v2 に変換
     const hostname = uri.replace('neo4j+s://', '').replace('neo4j://', '');
@@ -55,9 +60,17 @@ export class Neo4jQueryAPIClient {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('Neo4j query failed:', response.status, data);
+        console.error('Neo4j Query API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: this.baseUrl,
+          errorData: data
+        });
+        if (response.status === 401) {
+          console.error('Authentication failed - check NEO4J credentials');
+        }
         const error = data as QueryAPIError;
-        throw new Error(error.errors?.[0]?.message || 'Query execution failed');
+        throw new Error(error.errors?.[0]?.message || `Query execution failed (${response.status})`);
       }
 
       const result = data as QueryAPIResponse;
