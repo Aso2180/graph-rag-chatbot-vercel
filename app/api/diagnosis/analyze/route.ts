@@ -15,18 +15,27 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Processing diagnosis for:', input.appName || 'Unnamed App');
+    const startTime = Date.now();
 
     // GraphRAGで関連情報を検索（タイムアウトしても続行）
     const graphResults = await Promise.race([
       searchRelevantData(input),
       new Promise<null>((resolve) => setTimeout(() => {
-        console.log('Graph search timeout, proceeding without graph data');
+        console.log('Graph search timeout after 40s, proceeding without graph data');
         resolve(null);
-      }, 20000)) // 20秒でタイムアウト
+      }, 40000)) // 40秒でタイムアウト（余裕を持たせる）
     ]);
 
+    const graphSearchTime = Date.now() - startTime;
+    console.log(`Graph search completed in ${graphSearchTime}ms`);
+
     // Claude APIでリスク分析を実行
+    const analysisStartTime = Date.now();
     const result = await analyzeLegalRisks(input, graphResults);
+    const analysisTime = Date.now() - analysisStartTime;
+
+    const totalTime = Date.now() - startTime;
+    console.log(`Analysis completed in ${analysisTime}ms, total time: ${totalTime}ms`);
 
     return NextResponse.json(result);
   } catch (error) {
@@ -59,7 +68,7 @@ async function searchRelevantData(input: DiagnosisInput): Promise<any> {
       query: `AI法的リスク ${searchTerms}`,
       context: 'legal-risk-diagnosis',
     }, {
-      timeout: 15000, // 15秒のタイムアウト
+      timeout: 30000, // 30秒のタイムアウト（余裕を持たせる）
     });
     return response.data;
   } catch (error) {
@@ -94,7 +103,7 @@ async function analyzeLegalRisks(
           messages: [{ role: 'user', content: prompt }],
         },
         {
-          timeout: 90000, // 90秒のタイムアウト
+          timeout: 200000, // 200秒のタイムアウト（Vercel 300秒設定を活用）
         }
       );
 
