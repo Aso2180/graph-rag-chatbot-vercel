@@ -25,8 +25,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Diagnosis API Error:', error);
+    const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+    console.error('Error details:', errorMessage);
     return NextResponse.json(
-      { error: '診断の実行に失敗しました' },
+      { error: '診断の実行に失敗しました', details: errorMessage },
       { status: 500 }
     );
   }
@@ -44,13 +46,23 @@ async function searchRelevantData(input: DiagnosisInput): Promise<any> {
       .filter(Boolean)
       .join(' ');
 
-    const response = await axios.post(`${getBaseUrl()}/api/graph-search`, {
+    const baseUrl = getBaseUrl();
+    console.log('Graph search base URL:', baseUrl);
+
+    const response = await axios.post(`${baseUrl}/api/graph-search`, {
       query: `AI法的リスク ${searchTerms}`,
       context: 'legal-risk-diagnosis',
+    }, {
+      timeout: 10000, // 10秒のタイムアウト
     });
     return response.data;
   } catch (error) {
     console.error('Graph search failed:', error);
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as any;
+      console.error('Axios error details:', axiosError.message);
+      console.error('Response status:', axiosError.response?.status);
+    }
     return null;
   }
 }
@@ -61,17 +73,24 @@ async function analyzeLegalRisks(
 ): Promise<DiagnosisResult> {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
+    console.log('API Key status:', apiKey ? 'Set' : 'Not set');
 
     if (apiKey && apiKey !== 'your_anthropic_api_key_here') {
+      console.log('Using Anthropic API for analysis');
       const anthropic = getAnthropicClient();
 
       const prompt = buildDiagnosisPrompt(input, graphResults);
 
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 8000,
-        messages: [{ role: 'user', content: prompt }],
-      });
+      const response = await anthropic.messages.create(
+        {
+          model: 'claude-sonnet-4-5-20250929',
+          max_tokens: 8000,
+          messages: [{ role: 'user', content: prompt }],
+        },
+        {
+          timeout: 60000, // 60秒のタイムアウト
+        }
+      );
 
       const responseText =
         response.content[0]?.type === 'text' ? response.content[0].text : '';
@@ -88,13 +107,18 @@ async function analyzeLegalRisks(
       }
 
       // フォールバック: マークダウンから構造化
+      console.log('Using fallback: JSON parse failed');
       return generateFallbackResult(input, responseText, graphResults);
     } else {
       // APIキーが未設定の場合はフォールバック
+      console.log('Using fallback: API key not configured');
       return generateFallbackResult(input, null, graphResults);
     }
   } catch (error) {
     console.error('AI analysis failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error message:', errorMessage);
+    console.log('Using fallback due to error');
     return generateFallbackResult(input, null, graphResults);
   }
 }
@@ -331,11 +355,19 @@ function generateFallbackResult(
 }
 
 function getBaseUrl(): string {
+  // Vercel環境の場合
   if (process.env.VERCEL_URL) {
+    // VERCEL_URLにはプロトコルが含まれていないため、httpsを追加
     return `https://${process.env.VERCEL_URL}`;
   }
+  // 開発環境の場合
   if (process.env.NODE_ENV === 'development') {
     return 'http://localhost:3000';
   }
-  return '';
+  // その他の本番環境（カスタムドメインなど）
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  // フォールバック: 環境変数から取得
+  return process.env.NEXT_PUBLIC_APP_URL || '';
 }
