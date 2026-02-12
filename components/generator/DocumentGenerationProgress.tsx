@@ -85,24 +85,24 @@ export function DocumentGenerationProgress({
   };
 
   return (
-    <div className="bg-white rounded-lg border-2 border-blue-200 p-6 space-y-4">
+    <div className="bg-white rounded-lg border-2 border-blue-200 p-3 sm:p-6 space-y-3 sm:space-y-4">
       {/* ヘッダー */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-gray-800">文書生成中</h3>
-        <div className="text-sm text-gray-600">
+        <h3 className="text-base sm:text-lg font-bold text-gray-800">文書生成中</h3>
+        <div className="text-xs sm:text-sm text-gray-600">
           {completed} / {total} 完了
         </div>
       </div>
 
       {/* プログレスバー */}
-      <div className="space-y-2">
-        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+      <div className="space-y-1.5 sm:space-y-2">
+        <div className="w-full bg-gray-200 rounded-full h-2.5 sm:h-3 overflow-hidden">
           <div
             className="bg-blue-500 h-full transition-all duration-500 ease-out rounded-full"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-        <div className="flex justify-between text-xs text-gray-600">
+        <div className="flex justify-between text-[10px] sm:text-xs text-gray-600">
           <span>{Math.round(progressPercentage)}% 完了</span>
           {estimatedTimeRemaining !== undefined && estimatedTimeRemaining > 0 && (
             <span className="font-medium text-blue-600">
@@ -113,7 +113,7 @@ export function DocumentGenerationProgress({
       </div>
 
       {/* 文書別の進捗 */}
-      <div className="space-y-2">
+      <div className="space-y-1.5 sm:space-y-2">
         {documentTypes.map((docType) => {
           const docProgress = progress.find((p) => p.type === docType);
           const status = docProgress?.status || 'pending';
@@ -122,17 +122,17 @@ export function DocumentGenerationProgress({
             <div
               key={docType}
               className={`
-                flex items-center justify-between p-3 rounded-lg border transition-all
+                flex items-center justify-between p-2 sm:p-3 rounded-lg border transition-all
                 ${status === 'generating' ? 'bg-blue-50 border-blue-300' : 'bg-gray-50 border-gray-200'}
               `}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 flex justify-center">{getStatusIcon(status)}</div>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="w-6 sm:w-8 flex justify-center flex-shrink-0">{getStatusIcon(status)}</div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-800 truncate">
                     {DOCUMENT_TYPE_LABELS[docType]}
                   </p>
-                  <p className={`text-xs ${getStatusColor(status)}`}>
+                  <p className={`text-[10px] sm:text-xs ${getStatusColor(status)}`}>
                     {getStatusText(status)}
                     {docProgress?.error && ` (${docProgress.error})`}
                   </p>
@@ -144,8 +144,8 @@ export function DocumentGenerationProgress({
       </div>
 
       {/* ヒント */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <p className="text-xs text-blue-800">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-3">
+        <p className="text-[10px] sm:text-xs text-blue-800">
           💡 複数の文書を並列で生成しています。このウィンドウを閉じずにお待ちください。
         </p>
       </div>

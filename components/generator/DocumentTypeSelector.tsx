@@ -54,19 +54,19 @@ export function DocumentTypeSelector({
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">
+    <div className="space-y-3 sm:space-y-4">
+      <h3 className="text-base sm:text-lg font-semibold text-gray-900">
         生成する文書を選択 <span className="text-red-500">*</span>
       </h3>
-      <p className="text-sm text-gray-600">
+      <p className="text-xs sm:text-sm text-gray-600">
         生成したい文書の種類を選択してください（複数選択可）
       </p>
 
-      <div className="grid gap-3">
+      <div className="grid gap-2 sm:gap-3">
         {DOCUMENT_OPTIONS.map((option) => (
           <div
             key={option.type}
-            className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+            className={`border rounded-lg p-3 sm:p-4 cursor-pointer transition-colors ${
               selectedTypes.includes(option.type)
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -74,7 +74,7 @@ export function DocumentTypeSelector({
             onClick={() => handleToggle(option.type)}
           >
             <div className="flex items-start">
-              <div className="flex items-center h-5 mt-0.5">
+              <div className="flex items-center h-5 mt-0.5 flex-shrink-0">
                 <input
                   type="checkbox"
                   checked={selectedTypes.includes(option.type)}
@@ -82,14 +82,14 @@ export function DocumentTypeSelector({
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
               </div>
-              <div className="ml-3">
-                <div className="flex items-center">
-                  <span className="text-xl mr-2">{option.icon}</span>
-                  <span className="font-medium text-gray-900">
+              <div className="ml-2 sm:ml-3 min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="text-lg sm:text-xl flex-shrink-0">{option.icon}</span>
+                  <span className="font-medium text-gray-900 text-sm sm:text-base">
                     {DOCUMENT_TYPE_LABELS[option.type]}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 mt-1">{option.description}</p>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">{option.description}</p>
               </div>
             </div>
           </div>

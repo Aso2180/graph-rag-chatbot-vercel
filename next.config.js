@@ -12,8 +12,10 @@ const nextConfig = {
     generateEtags: false,
   }),
   
-  // File upload configuration
-  serverExternalPackages: ['pdf-parse-new'],
+  // File upload configuration (Next.js 14 compatibility)
+  experimental: {
+    serverComponentsExternalPackages: ['pdf-parse-new'],
+  },
   
   // Security headers
   async headers() {

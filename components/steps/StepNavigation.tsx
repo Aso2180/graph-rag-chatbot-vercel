@@ -32,7 +32,7 @@ export function StepNavigation({ currentStep, completedSteps, onStepClick }: Ste
   };
 
   return (
-    <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+    <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-4 mb-3 sm:mb-4">
       <div className="flex items-center justify-center">
         {steps.map((item, index) => {
           const status = getStepStatus(item.step);
@@ -45,7 +45,7 @@ export function StepNavigation({ currentStep, completedSteps, onStepClick }: Ste
                 onClick={() => clickable && onStepClick(item.step)}
                 disabled={!clickable}
                 className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg transition-all
+                  flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-base
                   ${status === 'current'
                     ? 'bg-blue-600 text-white font-bold shadow-md'
                     : status === 'completed'
@@ -55,7 +55,7 @@ export function StepNavigation({ currentStep, completedSteps, onStepClick }: Ste
               >
                 {/* アイコン/チェックマーク */}
                 <span className={`
-                  w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold
+                  w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold
                   ${status === 'current'
                     ? 'bg-white text-blue-600'
                     : status === 'completed'
@@ -71,7 +71,7 @@ export function StepNavigation({ currentStep, completedSteps, onStepClick }: Ste
               {/* コネクター */}
               {index < steps.length - 1 && (
                 <div className={`
-                  w-8 h-0.5 mx-2
+                  w-4 sm:w-8 h-0.5 mx-1 sm:mx-2
                   ${completedSteps.has(item.step) ? 'bg-green-400' : 'bg-gray-200'}
                 `} />
               )}
@@ -81,7 +81,7 @@ export function StepNavigation({ currentStep, completedSteps, onStepClick }: Ste
       </div>
 
       {/* おすすめの使い方（モバイル向け補足） */}
-      <div className="mt-3 text-center text-xs text-gray-500 sm:hidden">
+      <div className="mt-2 sm:mt-3 text-center text-[10px] sm:text-xs text-gray-500 sm:hidden">
         {currentStep === 1 && '利用状況を入力してください'}
         {currentStep === 2 && '法的リスクを確認してください'}
         {currentStep === 3 && '利用規約を作成してください'}

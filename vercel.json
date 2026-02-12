@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "app/api/generator/generate-stream/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/diagnosis/analyze/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/chat/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

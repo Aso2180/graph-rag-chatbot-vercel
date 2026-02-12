@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* モバイル向けスクロール改善 */
+@media (max-width: 640px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}

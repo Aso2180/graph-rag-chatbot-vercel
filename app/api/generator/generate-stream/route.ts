@@ -63,10 +63,13 @@ export async function POST(request: NextRequest) {
         });
 
         const startTime = Date.now();
-        const batchSize = 2;
+        // 並行処理数を2に制限（APIレート制限とタイムアウト対策）
+        const MAX_CONCURRENT = 2;
 
-        for (let i = 0; i < input.documentTypes.length; i += batchSize) {
-          const batch = input.documentTypes.slice(i, i + batchSize);
+        for (let i = 0; i < input.documentTypes.length; i += MAX_CONCURRENT) {
+          const batch = input.documentTypes.slice(i, i + MAX_CONCURRENT);
+
+          console.log(`Processing batch ${i / MAX_CONCURRENT + 1}: ${batch.length} documents`);
 
           const batchPromises = batch.map(async (docType) => {
             try {
@@ -156,11 +159,19 @@ async function generateDocument(
       const anthropic = getAnthropicClient();
       const prompt = buildDocumentPrompt(docType, input);
 
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 8000,
-        messages: [{ role: 'user', content: prompt }],
-      });
+      // 文書タイプによって最大トークン数を調整（生成時間の最適化）
+      const maxTokens = docType === 'internal_risk_report' ? 4000 : 8000;
+
+      const response = await anthropic.messages.create(
+        {
+          model: 'claude-sonnet-4-5-20250929',
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }],
+        },
+        {
+          timeout: 120000, // 120秒のタイムアウトを設定
+        }
+      );
 
       const content =
         response.content[0]?.type === 'text' ? response.content[0].text : '';
@@ -339,17 +350,20 @@ function getDocumentTypeInstructions(docType: DocumentType, isInternalUse: boole
 【社内リスクレポート】
 経営層・管理職向けのリスク評価レポートを作成します。
 
-**文字数制限**: 全体で4000文字以内に収めること（厳守）
+**文字数制限**: 全体で3000文字以内に収めること（厳守）
 
 **記載形式**:
 - 各セクションは箇条書き中心で簡潔に記載
 - 長文の説明は避け、要点のみを記載
-- 1つのリスク項目は200文字以内で記載
+- 1つのリスク項目は150文字以内で記載
+- エグゼクティブサマリーは200文字以内
+- 各セクションの見出しと箇条書きのみで構成
 
 **重要な制約事項**:
 - 対応ロードマップでは、対応方法の種類と優先順位を記載すること
 - 具体的な対応人員数（例: 「法務担当者2名」など）や対応コスト金額（例: 「年間500万円」など）は記載しないこと
 - 訴訟リスクや違反時の損害額の提示は可能（例: 「個人情報保護法違反による最大1億円の罰金リスク」など）
+- 説明文は最小限にし、リスト形式を最大限活用すること
 `,
       user_guidelines: `
 【従業員向けAI利用ガイドライン】
@@ -425,37 +439,35 @@ function getDocumentTypeInstructions(docType: DocumentType, isInternalUse: boole
       internal_risk_report: `
 【社内リスクレポートの構成】
 
-**文字数制限**: 全体で4000文字以内に収めること（厳守）
+**文字数制限**: 全体で3000文字以内に収めること（厳守）
 
-1. エグゼクティブサマリー（300文字以内）
-   - 総合リスクレベルと最優先対応事項のみを簡潔に記載
-2. 対象サービス/プロジェクト概要（200文字以内）
+1. エグゼクティブサマリー（200文字以内）
+   - 総合リスクレベルと最優先対応事項のみ
+2. 対象サービス概要（150文字以内）
    - サービス名、利用技術、想定ユーザーのみ
-3. リスク評価の方法論（150文字以内）
-   - 評価基準を1〜2行で記載
-4. 特定されたリスク一覧（1500文字以内）
-   - 各リスクは以下の形式で簡潔に記載：
-     - リスク名、レベル（高/中/低）、影響度を1行で
-     - 詳細は2〜3行の箇条書きのみ
+3. リスク評価方法（100文字以内）
+   - 評価基準を1行で記載
+4. 特定されたリスク一覧（1200文字以内）
+   - 各リスク：リスク名、レベル、影響度（1行）
+   - 詳細：2〜3行の箇条書きのみ
    - リスクは最大5項目まで
-5. 優先度別の対応ロードマップ（1000文字以内）
+5. 優先度別対応ロードマップ（800文字以内）
    - 対応方法の種類と優先順位を箇条書きで記載
-   - **重要**: 具体的な対応人員数や対応コスト金額は記載しないこと
+   - **重要**: 対応人員数や対応コスト金額は記載しないこと
    - 訴訟リスク金額や損害額の提示は可
-6. モニタリング計画（200文字以内）
-   - 監視すべき指標を箇条書きで2〜3項目
-7. 次回レビュー予定（100文字以内）
+6. モニタリング計画（150文字以内）
+   - 監視指標を箇条書きで2〜3項目
+7. 次回レビュー（100文字以内）
 
 **記載形式の重要な指示**:
 - 箇条書きを最大限活用し、文章は最小限に
-- 冗長な説明や繰り返しは避ける
-- 各リスク項目は200文字以内
+- 各リスク項目は150文字以内
 - 法的根拠は法令名のみ（条文の引用は不要）
-- 具体的な対応人員数（例: 「法務担当者2名」など）や対応コスト金額（例: 「年間500万円」など）は記載しないこと
-- 対応方法の種類（例: 「法務担当者の配置」「外部弁護士への相談」など）と優先順位のみを記載すること
-- 訴訟リスクや違反時の損害額の提示は可能（例: 「著作権侵害による損害賠償リスクは最大数千万円規模」など）
+- 具体的な対応人員数や対応コスト金額は記載しないこと
+- 対応方法の種類と優先順位のみを記載すること
+- 訴訟リスクや損害額の提示は可能
 
-経営層への報告を想定し、簡潔かつ要点を絞った内容にすること。
+簡潔かつ要点を絞った内容にすること。
 `,
       user_guidelines: `
 【ユーザーガイドラインの構成】

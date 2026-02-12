@@ -173,25 +173,25 @@ export function DocumentGenerator({
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-2 sm:px-0">
       {/* Progress indicator */}
       {step !== 'preview' && (
-        <div className="mb-6">
-          <div className="flex items-center justify-center space-x-4">
+        <div className="mb-4 sm:mb-6">
+          <div className="flex items-center justify-center space-x-2 sm:space-x-4">
             <StepIndicator
               number={1}
               label="文書選択"
               isActive={step === 'select'}
               isCompleted={step === 'info' || step === 'generating'}
             />
-            <div className="w-12 h-0.5 bg-gray-300" />
+            <div className="w-6 sm:w-12 h-0.5 bg-gray-300" />
             <StepIndicator
               number={2}
               label="情報入力"
               isActive={step === 'info'}
               isCompleted={step === 'generating'}
             />
-            <div className="w-12 h-0.5 bg-gray-300" />
+            <div className="w-6 sm:w-12 h-0.5 bg-gray-300" />
             <StepIndicator
               number={3}
               label="生成"
@@ -221,7 +221,7 @@ export function DocumentGenerator({
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-3 sm:p-6">
         {/* Step 1: Document type selection */}
         {step === 'select' && (
           <>
@@ -439,16 +439,16 @@ function StepIndicator({ number, label, isActive, isCompleted }: StepIndicatorPr
   return (
     <div className="flex flex-col items-center">
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+        className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium ${
           isCompleted
             ? 'bg-blue-500 text-white'
             : isActive
-            ? 'bg-blue-500 text-white ring-4 ring-blue-100'
+            ? 'bg-blue-500 text-white ring-2 sm:ring-4 ring-blue-100'
             : 'bg-gray-200 text-gray-500'
         }`}
       >
         {isCompleted ? (
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -460,7 +460,7 @@ function StepIndicator({ number, label, isActive, isCompleted }: StepIndicatorPr
         )}
       </div>
       <span
-        className={`mt-1 text-xs ${
+        className={`mt-1 text-[10px] sm:text-xs ${
           isActive ? 'text-blue-600 font-medium' : 'text-gray-500'
         }`}
       >

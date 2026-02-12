@@ -98,7 +98,7 @@ export function Step1UserContext({
           <span className="w-5 h-5 bg-blue-600 text-white rounded-full text-xs flex items-center justify-center">1</span>
           基本情報
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <CheckboxItem
             id="basic-individual"
             checked={userContext.isIndividual}
@@ -152,7 +152,7 @@ export function Step1UserContext({
           AI生成コンテンツの種類
           <span className="text-xs font-normal text-gray-500">（複数選択可）</span>
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <CheckboxItem
             id="content-text"
             checked={userContext.contentTypes.text}
