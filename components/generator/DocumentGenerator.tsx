@@ -124,11 +124,13 @@ export function DocumentGenerator({
           if (line.startsWith('data: ')) {
             try {
               const eventData = JSON.parse(line.slice(6));
+              console.log('[FRONTEND EVENT]', eventData.type, eventData.documentType || '');
 
               if (eventData.type === 'start') {
                 setEstimatedTimeRemaining(eventData.estimatedTimeRemaining);
               } else if (eventData.type === 'progress') {
                 // 生成開始
+                console.log('[PROGRESS]', eventData.documentType);
                 setProgress((prev) =>
                   prev.map((p) =>
                     p.type === eventData.documentType ? { ...p, status: 'generating' } : p
@@ -136,6 +138,7 @@ export function DocumentGenerator({
                 );
               } else if (eventData.type === 'complete') {
                 // 生成完了
+                console.log('[COMPLETE]', eventData.documentType, 'Total documents now:', documents.length + 1);
                 documents.push(eventData.document);
                 setCompletedCount(eventData.completed);
                 setEstimatedTimeRemaining(eventData.estimatedTimeRemaining);
@@ -148,6 +151,7 @@ export function DocumentGenerator({
                 );
               } else if (eventData.type === 'done') {
                 // 全完了
+                console.log('[DONE] Final documents count:', documents.length, 'Documents:', documents.map(d => d.type));
                 setGeneratedDocuments(documents);
                 setStep('preview');
               } else if (eventData.type === 'error') {

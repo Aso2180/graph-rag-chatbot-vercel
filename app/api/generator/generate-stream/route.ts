@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
 
           const batchPromises = batch.map(async (docType) => {
             try {
+              console.log(`[START] Generating document: ${docType}`);
               sendEvent(controller, encoder, {
                 type: 'progress',
                 documentType: docType,
@@ -84,11 +85,13 @@ export async function POST(request: NextRequest) {
 
               const doc = await generateDocument(docType, input);
               completedDocs++;
+              console.log(`[SUCCESS] Generated document: ${docType}, completed: ${completedDocs}/${totalDocs}`);
 
               const elapsed = Date.now() - startTime;
               const avgTimePerDoc = elapsed / completedDocs;
               const remaining = Math.ceil((totalDocs - completedDocs) * avgTimePerDoc / 1000);
 
+              console.log(`[SENDING COMPLETE EVENT] for ${docType}`);
               sendEvent(controller, encoder, {
                 type: 'complete',
                 documentType: docType,
@@ -98,13 +101,15 @@ export async function POST(request: NextRequest) {
                 total: totalDocs,
                 estimatedTimeRemaining: remaining,
               });
+              console.log(`[SENT COMPLETE EVENT] for ${docType}`);
 
               return doc;
             } catch (error) {
-              console.error(`Failed to generate ${docType}:`, error);
+              console.error(`[ERROR] Failed to generate ${docType}:`, error);
               const fallbackDoc = generateFallbackDocument(docType, input);
               completedDocs++;
 
+              console.log(`[FALLBACK] Using fallback for ${docType}, completed: ${completedDocs}/${totalDocs}`);
               sendEvent(controller, encoder, {
                 type: 'complete',
                 documentType: docType,
@@ -119,14 +124,18 @@ export async function POST(request: NextRequest) {
             }
           });
 
+          console.log(`[BATCH COMPLETE] Waiting for batch ${i / MAX_CONCURRENT + 1} to finish...`);
           await Promise.all(batchPromises);
+          console.log(`[BATCH DONE] Batch ${i / MAX_CONCURRENT + 1} finished. completedDocs: ${completedDocs}`);
         }
 
+        console.log(`[ALL COMPLETE] All documents generated. Sending done event. Total: ${completedDocs}/${totalDocs}`);
         sendEvent(controller, encoder, {
           type: 'done',
           completed: totalDocs,
           total: totalDocs,
         });
+        console.log('[DONE EVENT SENT] Stream complete');
 
         controller.close();
       } catch (error) {

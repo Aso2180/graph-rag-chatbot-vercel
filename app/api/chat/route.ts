@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
 async function searchGraphData(query: string): Promise<any> {
   try {
-    const response = await axios.post(`${getBaseUrl()}/api/graph-search`, {
+    const response = await axios.post(`${getInternalApiBaseUrl()}/api/graph-search`, {
       query,
       context: 'legal-risk-analysis'
     });
@@ -75,7 +75,7 @@ async function searchGraphData(query: string): Promise<any> {
 
 async function searchWebData(query: string): Promise<any> {
   try {
-    const response = await axios.post(`${getBaseUrl()}/api/web-search`, {
+    const response = await axios.post(`${getInternalApiBaseUrl()}/api/web-search`, {
       query,
       context: 'legal-risk-analysis'
     });
@@ -223,12 +223,33 @@ function generateLocalResponse(query: string, graphResults: any, webResults: any
   return response;
 }
 
-function getBaseUrl(): string {
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
+function getInternalApiBaseUrl(): string {
+  // 本番環境では固定の本番URLを使用（VERCEL_URLはプレビューURLの可能性があるため）
+  if (process.env.VERCEL_ENV === 'production') {
+    const productionUrl = 'https://graph-rag-chatbot-vercel-01.vercel.app';
+    console.log('Using production URL for internal API calls:', productionUrl);
+    return productionUrl;
   }
+
+  // プレビュー環境ではVERCEL_URLを使用
+  if (process.env.VERCEL_URL) {
+    const url = `https://${process.env.VERCEL_URL}`;
+    console.log('Using VERCEL_URL for internal API calls:', url);
+    return url;
+  }
+
+  // 開発環境
   if (process.env.NODE_ENV === 'development') {
+    console.log('Using development URL: http://localhost:3000');
     return 'http://localhost:3000';
   }
-  return '';
+
+  // フォールバック
+  console.log('Using fallback production URL');
+  return 'https://graph-rag-chatbot-vercel-01.vercel.app';
+}
+
+// 後方互換性のため残す
+function getBaseUrl(): string {
+  return getInternalApiBaseUrl();
 }
