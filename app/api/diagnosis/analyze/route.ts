@@ -269,21 +269,23 @@ function buildDiagnosisPrompt(input: DiagnosisInput, combinedResults: any): stri
 【診断対象アプリケーション情報】
 - アプリ名: ${input.appName || '未設定'}
 - 概要: ${input.appDescription}
-- 使用AI技術: ${input.aiTechnologies.join(', ')}
-- AIプロバイダー: ${input.aiProviders.join(', ')}
-- 入力データの種類: ${input.inputDataTypes.join(', ')}
+- 使用AI技術: ${input.aiTechnologies?.join(', ') || 'なし'}
+- AIプロバイダー: ${input.aiProviders?.join(', ') || 'なし'}
+- 入力データの種類: ${input.inputDataTypes?.join(', ') || 'なし'}
 - データ送信先: ${
     input.dataTransmission === 'external_api'
       ? '外部API'
       : input.dataTransmission === 'local'
       ? 'ローカル処理'
-      : '両方'
+      : input.dataTransmission === 'both'
+      ? '両方'
+      : '未設定'
   }
-- データ保存・利用: ${input.dataStorage.join(', ')}
-- 想定ユーザー: ${input.targetUsers.join(', ')}
-- 料金モデル: ${input.pricingModel}
-- 主な用途: ${input.useCases.join(', ')}
-- 特に懸念している領域: ${input.concernedRisks.join(', ') || 'なし'}
+- データ保存・利用: ${input.dataStorage?.join(', ') || 'なし'}
+- 想定ユーザー: ${Array.isArray(input.targetUsers) ? input.targetUsers.join(', ') : input.targetUsers || 'なし'}
+- 料金モデル: ${input.pricingModel || 'なし'}
+- 主な用途: ${input.useCases?.join(', ') || 'なし'}
+- 特に懸念している領域: ${input.concernedRisks?.join(', ') || 'なし'}
 - 追加情報: ${input.additionalNotes || 'なし'}
 
 ${context}
@@ -331,12 +333,12 @@ function generateFallbackResult(
 
   // 個人情報リスク
   if (
-    input.inputDataTypes.includes('personal_info') ||
-    input.inputDataTypes.includes('sensitive_personal')
+    input.inputDataTypes?.includes('personal_info') ||
+    input.inputDataTypes?.includes('sensitive_personal')
   ) {
     risks.push({
       category: 'プライバシー・個人情報保護',
-      level: input.inputDataTypes.includes('sensitive_personal') ? 'high' : 'medium',
+      level: input.inputDataTypes?.includes('sensitive_personal') ? 'high' : 'medium',
       summary: '個人情報または要配慮個人情報を取り扱うため、データ保護法への対応が必要です。',
       details:
         '個人情報保護法に基づく適切な取得・管理・第三者提供の手続きが必要です。外部APIへのデータ送信がある場合は、越境移転規制にも注意が必要です。',
@@ -370,9 +372,9 @@ function generateFallbackResult(
 
   // 著作権リスク（コンテンツ生成系）
   if (
-    input.aiTechnologies.includes('llm') ||
-    input.aiTechnologies.includes('image_generation') ||
-    input.aiTechnologies.includes('code_generation')
+    input.aiTechnologies?.includes('llm') ||
+    input.aiTechnologies?.includes('image_generation') ||
+    input.aiTechnologies?.includes('code_generation')
   ) {
     risks.push({
       category: '著作権・知的財産',
@@ -391,7 +393,7 @@ function generateFallbackResult(
   }
 
   // AI透明性（EU向け）
-  if (input.targetUsers.includes('eu')) {
+  if (Array.isArray(input.targetUsers) && input.targetUsers.includes('eu')) {
     risks.push({
       category: 'EU AI規制法対応',
       level: 'high',
@@ -409,7 +411,7 @@ function generateFallbackResult(
   }
 
   // 子ども向けサービス
-  if (input.targetUsers.includes('children')) {
+  if (Array.isArray(input.targetUsers) && input.targetUsers.includes('children')) {
     risks.push({
       category: '児童保護',
       level: 'high',
