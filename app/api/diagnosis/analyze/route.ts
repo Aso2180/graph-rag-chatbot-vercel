@@ -4,10 +4,16 @@ import axios from 'axios';
 import { DiagnosisInput, DiagnosisResult, RiskItem } from '@/types/diagnosis';
 
 export async function POST(request: NextRequest) {
+  console.log('=== Diagnosis API Called ===');
+  console.log('Timestamp:', new Date().toISOString());
+
   try {
+    console.log('Parsing request body...');
     const input: DiagnosisInput = await request.json();
+    console.log('Request body parsed successfully');
 
     if (!input.appDescription) {
+      console.error('Validation failed: Missing appDescription');
       return NextResponse.json(
         { error: 'アプリケーションの概要は必須です' },
         { status: 400 }
@@ -15,6 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Processing diagnosis for:', input.appName || 'Unnamed App');
+    console.log('Input data:', JSON.stringify(input, null, 2));
     const startTime = Date.now();
 
     // GraphRAGで関連情報を検索（タイムアウトしても続行）
@@ -39,11 +46,25 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Diagnosis API Error:', error);
+    console.error('=== Diagnosis API Error ===');
+    console.error('Error:', error);
+
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+
     const errorMessage = error instanceof Error ? error.message : '不明なエラー';
-    console.error('Error details:', errorMessage);
+    const errorStack = error instanceof Error ? error.stack : '';
+
     return NextResponse.json(
-      { error: '診断の実行に失敗しました', details: errorMessage },
+      {
+        error: '診断の実行に失敗しました',
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }
@@ -86,13 +107,16 @@ async function analyzeLegalRisks(
   input: DiagnosisInput,
   graphResults: any
 ): Promise<DiagnosisResult> {
+  console.log('Starting analyzeLegalRisks...');
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    console.log('API Key status:', apiKey ? 'Set' : 'Not set');
+    console.log('API Key status:', apiKey ? `Set (${apiKey.substring(0, 10)}...)` : 'Not set');
 
     if (apiKey && apiKey !== 'your_anthropic_api_key_here') {
       console.log('Using Anthropic API for analysis');
+      console.log('Creating Anthropic client...');
       const anthropic = getAnthropicClient();
+      console.log('Anthropic client created successfully');
 
       const prompt = buildDiagnosisPrompt(input, graphResults);
 
