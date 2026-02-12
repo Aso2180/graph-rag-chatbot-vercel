@@ -24,21 +24,39 @@ export async function POST(request: NextRequest) {
     console.log('Input data:', JSON.stringify(input, null, 2));
     const startTime = Date.now();
 
-    // GraphRAGで関連情報を検索（タイムアウトしても続行）
-    const graphResults = await Promise.race([
-      searchRelevantData(input),
-      new Promise<null>((resolve) => setTimeout(() => {
-        console.log('Graph search timeout after 40s, proceeding without graph data');
-        resolve(null);
-      }, 40000)) // 40秒でタイムアウト（余裕を持たせる）
+    // GraphRAGとWeb検索を並行実行（タイムアウトしても続行）
+    console.log('Starting parallel search (Graph + Web)...');
+
+    const [graphResults, webResults] = await Promise.all([
+      // Graph検索
+      Promise.race([
+        searchRelevantData(input),
+        new Promise<null>((resolve) => setTimeout(() => {
+          console.log('Graph search timeout after 40s, proceeding without graph data');
+          resolve(null);
+        }, 40000))
+      ]),
+      // Web検索（TAVILY）
+      Promise.race([
+        searchWebData(input),
+        new Promise<null>((resolve) => setTimeout(() => {
+          console.log('Web search timeout after 30s, proceeding without web data');
+          resolve(null);
+        }, 30000))
+      ])
     ]);
 
     const graphSearchTime = Date.now() - startTime;
     console.log(`Graph search completed in ${graphSearchTime}ms`);
+    console.log(`Web search results: ${webResults ? 'Success' : 'Skipped'}`);
 
-    // Claude APIでリスク分析を実行
+    // Claude APIでリスク分析を実行（Graph + Web検索結果を統合）
     const analysisStartTime = Date.now();
-    const result = await analyzeLegalRisks(input, graphResults);
+    const combinedResults = {
+      graphResults,
+      webResults
+    };
+    const result = await analyzeLegalRisks(input, combinedResults);
     const analysisTime = Date.now() - analysisStartTime;
 
     const totalTime = Date.now() - startTime;
@@ -97,6 +115,42 @@ async function searchRelevantData(input: DiagnosisInput): Promise<any> {
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as any;
       console.error('Axios error details:', axiosError.message);
+      console.error('Response status:', axiosError.response?.status);
+    }
+    return null;
+  }
+}
+
+async function searchWebData(input: DiagnosisInput): Promise<any> {
+  try {
+    // 入力情報から検索クエリを構築
+    const searchTerms = [
+      input.appDescription,
+      ...input.aiTechnologies,
+      ...input.concernedRisks,
+      ...input.useCases,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    const baseUrl = getBaseUrl();
+    console.log('Web search base URL:', baseUrl);
+
+    const response = await axios.post(`${baseUrl}/api/web-search`, {
+      query: `AI 法的リスク 規制 ${searchTerms}`,
+      context: 'legal-risk-diagnosis',
+    }, {
+      timeout: 20000, // 20秒のタイムアウト
+    });
+
+    const webData = response.data as any;
+    console.log('Web search successful, results:', webData?.results?.length || 0);
+    return webData;
+  } catch (error) {
+    console.error('Web search failed:', error);
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as any;
+      console.error('Web search error details:', axiosError.message);
       console.error('Response status:', axiosError.response?.status);
     }
     return null;
@@ -162,18 +216,29 @@ async function analyzeLegalRisks(
   }
 }
 
-function buildDiagnosisPrompt(input: DiagnosisInput, graphResults: any): string {
+function buildDiagnosisPrompt(input: DiagnosisInput, combinedResults: any): string {
   let context = '';
 
-  if (graphResults?.graphResults?.length > 0) {
-    context += '\n【参照可能な関連情報】\n';
-    graphResults.graphResults.forEach((result: any, index: number) => {
+  // Graph検索結果
+  if (combinedResults?.graphResults?.graphResults?.length > 0) {
+    context += '\n【内部知識ベースからの関連情報】\n';
+    combinedResults.graphResults.graphResults.forEach((result: any, index: number) => {
       context += `${index + 1}. ${result.documentTitle}\n`;
       context += `   内容: ${result.content}\n`;
       if (result.relatedEntities?.length > 0) {
         context += `   関連キーワード: ${result.relatedEntities.join(', ')}\n`;
       }
       context += '\n';
+    });
+  }
+
+  // Web検索結果（TAVILY）
+  if (combinedResults?.webResults?.results?.length > 0) {
+    context += '\n【最新のWeb検索結果】\n';
+    combinedResults.webResults.results.slice(0, 5).forEach((result: any, index: number) => {
+      context += `${index + 1}. ${result.title}\n`;
+      context += `   URL: ${result.url}\n`;
+      context += `   内容: ${result.content || result.snippet}\n\n`;
     });
   }
 
