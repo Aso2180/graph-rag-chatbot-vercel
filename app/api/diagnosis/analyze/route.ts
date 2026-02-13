@@ -261,11 +261,12 @@ function buildDiagnosisPrompt(input: DiagnosisInput, combinedResults: any): stri
     });
   }
 
-  // チャット履歴をコンテキストに追加
+  // チャット履歴をコンテキストに追加（最新5件に制限してプロンプトの長さを抑える）
   if (input.chatHistory && input.chatHistory.length > 0) {
-    context += '\n【ユーザーとの相談内容】\n';
+    const recentChat = input.chatHistory.slice(-5); // 最新5件のみ使用
+    context += '\n【ユーザーとの相談内容（最新の主要な質問）】\n';
     context += 'ユーザーは以下の点について法的リスクの相談を行っています。これらの懸念事項を診断結果に反映してください：\n';
-    input.chatHistory.forEach((msg) => {
+    recentChat.forEach((msg) => {
       context += `${msg.role === 'user' ? 'ユーザー' : 'アシスタント'}: ${msg.content}\n`;
     });
     context += '\n';

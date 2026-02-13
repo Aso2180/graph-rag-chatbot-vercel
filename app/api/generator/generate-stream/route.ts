@@ -63,9 +63,9 @@ export async function POST(request: NextRequest) {
         });
 
         const startTime = Date.now();
-        // 並行処理数を3に設定（300秒制限内で5文書を高速生成）
-        // 計算: 3文書×80秒 + 2文書×80秒 = 160秒 < 300秒
-        const MAX_CONCURRENT = 3;
+        // 並行処理数を4に設定（300秒制限内で5文書を高速生成）
+        // 計算: 4文書×70秒 + 1文書×70秒 = 140秒 < 300秒
+        const MAX_CONCURRENT = 4;
 
         for (let i = 0; i < input.documentTypes.length; i += MAX_CONCURRENT) {
           const batch = input.documentTypes.slice(i, i + MAX_CONCURRENT);
@@ -180,7 +180,7 @@ async function generateDocument(
           messages: [{ role: 'user', content: prompt }],
         },
         {
-          timeout: 80000, // 80秒のタイムアウト（並列2文書×3バッチ = 240秒 < 300秒）
+          timeout: 70000, // 70秒のタイムアウト（並列4文書×70秒 + 1文書×70秒 = 140秒 < 300秒）
         }
       );
 
@@ -244,14 +244,15 @@ ${input.diagnosisResult.priorityActions.map((a) => `  - ${a}`).join('\n')}
 `;
   }
 
-  // チャット履歴をコンテキストに追加
+  // チャット履歴をコンテキストに追加（最新5件に制限してプロンプトの長さを抑える）
   let chatContext = '';
   if (input.chatHistory && input.chatHistory.length > 0) {
-    console.log('Chat history being used in document generation:', input.chatHistory);
+    const recentChat = input.chatHistory.slice(-5); // 最新5件のみ使用
+    console.log('Chat history being used in document generation (latest 5):', recentChat);
     chatContext = `
-【ユーザーとの相談内容】
+【ユーザーとの相談内容（最新の主要な質問）】
 以下は、ユーザーが法的リスクについて相談した内容です。この内容を規約作成に反映してください：
-${input.chatHistory
+${recentChat
   .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'アシスタント'}: ${msg.content}`)
   .join('\n')}
 `;
