@@ -111,54 +111,76 @@ export function DocumentGenerator({
       }
 
       const documents: GeneratedDocument[] = [];
+      let buffer = ''; // バッファ分割に対応するため、未処理データを保持
+
+      console.log('[SSE PARSER] Starting stream parsing...');
 
       while (true) {
         const { done, value } = await reader.read();
 
-        if (done) break;
+        if (done) {
+          console.log('[SSE PARSER] Stream ended. Final buffer:', buffer.length > 0 ? `${buffer.length} chars remaining` : 'empty');
+          break;
+        }
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        // stream: true で部分的なデコードに対応
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+        console.log('[SSE PARSER] Received chunk:', chunk.length, 'chars, buffer total:', buffer.length, 'chars');
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const eventData = JSON.parse(line.slice(6));
-              console.log('[FRONTEND EVENT]', eventData.type, eventData.documentType || '');
+        // 完全なイベント（\n\nで終わる）を抽出
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || ''; // 最後の不完全なイベントをバッファに戻す
 
-              if (eventData.type === 'start') {
-                setEstimatedTimeRemaining(eventData.estimatedTimeRemaining);
-              } else if (eventData.type === 'progress') {
-                // 生成開始
-                console.log('[PROGRESS]', eventData.documentType);
-                setProgress((prev) =>
-                  prev.map((p) =>
-                    p.type === eventData.documentType ? { ...p, status: 'generating' } : p
-                  )
-                );
-              } else if (eventData.type === 'complete') {
-                // 生成完了
-                console.log('[COMPLETE]', eventData.documentType, 'Total documents now:', documents.length + 1);
-                documents.push(eventData.document);
-                setCompletedCount(eventData.completed);
-                setEstimatedTimeRemaining(eventData.estimatedTimeRemaining);
-                setProgress((prev) =>
-                  prev.map((p) =>
-                    p.type === eventData.documentType
-                      ? { ...p, status: 'completed', error: eventData.error }
-                      : p
-                  )
-                );
-              } else if (eventData.type === 'done') {
-                // 全完了
-                console.log('[DONE] Final documents count:', documents.length, 'Documents:', documents.map(d => d.type));
-                setGeneratedDocuments(documents);
-                setStep('preview');
-              } else if (eventData.type === 'error') {
-                throw new Error(eventData.error || '生成に失敗しました');
+        console.log('[SSE PARSER] Extracted', events.length, 'complete events, buffer remaining:', buffer.length, 'chars');
+
+        for (const event of events) {
+          if (!event.trim()) continue; // 空イベントをスキップ
+
+          const lines = event.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const eventDataStr = line.slice(6);
+              try {
+                const eventData = JSON.parse(eventDataStr);
+                console.log('[FRONTEND EVENT]', eventData.type, eventData.documentType || '', 'Data size:', eventDataStr.length, 'chars');
+
+                if (eventData.type === 'start') {
+                  setEstimatedTimeRemaining(eventData.estimatedTimeRemaining);
+                } else if (eventData.type === 'progress') {
+                  // 生成開始
+                  console.log('[PROGRESS]', eventData.documentType);
+                  setProgress((prev) =>
+                    prev.map((p) =>
+                      p.type === eventData.documentType ? { ...p, status: 'generating' } : p
+                    )
+                  );
+                } else if (eventData.type === 'complete') {
+                  // 生成完了
+                  console.log('[COMPLETE]', eventData.documentType, 'Total documents now:', documents.length + 1);
+                  documents.push(eventData.document);
+                  setCompletedCount(eventData.completed);
+                  setEstimatedTimeRemaining(eventData.estimatedTimeRemaining);
+                  setProgress((prev) =>
+                    prev.map((p) =>
+                      p.type === eventData.documentType
+                        ? { ...p, status: 'completed', error: eventData.error }
+                        : p
+                    )
+                  );
+                } else if (eventData.type === 'done') {
+                  // 全完了
+                  console.log('[DONE] Final documents count:', documents.length, 'Documents:', documents.map(d => d.type));
+                  setGeneratedDocuments(documents);
+                  setStep('preview');
+                } else if (eventData.type === 'error') {
+                  throw new Error(eventData.error || '生成に失敗しました');
+                }
+              } catch (parseError) {
+                console.error('[SSE PARSE ERROR]', parseError);
+                console.error('[SSE PARSE ERROR] Event data:', eventDataStr.substring(0, 200), '...');
+                console.error('[SSE PARSE ERROR] Full event:', event.substring(0, 500));
               }
-            } catch (parseError) {
-              console.error('Event parse error:', parseError);
             }
           }
         }

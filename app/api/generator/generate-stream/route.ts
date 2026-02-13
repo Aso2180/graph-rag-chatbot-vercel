@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
         console.log('Document types:', input.documentTypes);
 
         const totalDocs = input.documentTypes.length;
-        let completedDocs = 0;
+        const completedDocs = new Array(totalDocs).fill(false); // 各文書の完了状態を追跡
+        const getCompletedCount = () => completedDocs.filter(Boolean).length;
 
         sendEvent(controller, encoder, {
           type: 'start',
@@ -69,53 +70,59 @@ export async function POST(request: NextRequest) {
 
         for (let i = 0; i < input.documentTypes.length; i += MAX_CONCURRENT) {
           const batch = input.documentTypes.slice(i, i + MAX_CONCURRENT);
+          const batchNumber = Math.floor(i / MAX_CONCURRENT) + 1;
+          const totalBatches = Math.ceil(input.documentTypes.length / MAX_CONCURRENT);
 
-          console.log(`Processing batch ${i / MAX_CONCURRENT + 1}: ${batch.length} documents`);
+          console.log(`[BATCH ${batchNumber}/${totalBatches}] Processing ${batch.length} documents: ${batch.join(', ')}`);
+          console.log(`[BATCH ${batchNumber}] Start time: ${new Date().toISOString()}`);
 
-          const batchPromises = batch.map(async (docType) => {
+          const batchPromises = batch.map(async (docType, batchIndex) => {
+            const docIndex = i + batchIndex; // グローバルなインデックス
             try {
-              console.log(`[START] Generating document: ${docType}`);
+              console.log(`[START] Generating document [${docIndex}]: ${docType}`);
               sendEvent(controller, encoder, {
                 type: 'progress',
                 documentType: docType,
                 documentTitle: DOCUMENT_TYPE_LABELS[docType],
-                completed: completedDocs,
+                completed: getCompletedCount(),
                 total: totalDocs,
               });
 
               const doc = await generateDocument(docType, input);
-              completedDocs++;
-              console.log(`[SUCCESS] Generated document: ${docType}, completed: ${completedDocs}/${totalDocs}`);
+              completedDocs[docIndex] = true; // 完了をマーク
+              const currentCompleted = getCompletedCount();
+              console.log(`[SUCCESS] Generated document [${docIndex}]: ${docType}, completed: ${currentCompleted}/${totalDocs}`);
 
               const elapsed = Date.now() - startTime;
-              const avgTimePerDoc = elapsed / completedDocs;
-              const remaining = Math.ceil((totalDocs - completedDocs) * avgTimePerDoc / 1000);
+              const avgTimePerDoc = elapsed / currentCompleted;
+              const remaining = Math.ceil((totalDocs - currentCompleted) * avgTimePerDoc / 1000);
 
-              console.log(`[SENDING COMPLETE EVENT] for ${docType}`);
+              console.log(`[SENDING COMPLETE EVENT] for ${docType} [${docIndex}]`);
               sendEvent(controller, encoder, {
                 type: 'complete',
                 documentType: docType,
                 documentTitle: DOCUMENT_TYPE_LABELS[docType],
                 document: doc,
-                completed: completedDocs,
+                completed: currentCompleted,
                 total: totalDocs,
                 estimatedTimeRemaining: remaining,
               });
-              console.log(`[SENT COMPLETE EVENT] for ${docType}`);
+              console.log(`[SENT COMPLETE EVENT] for ${docType} [${docIndex}]`);
 
               return doc;
             } catch (error) {
-              console.error(`[ERROR] Failed to generate ${docType}:`, error);
+              console.error(`[ERROR] Failed to generate [${docIndex}] ${docType}:`, error);
               const fallbackDoc = generateFallbackDocument(docType, input);
-              completedDocs++;
+              completedDocs[docIndex] = true; // 完了をマーク
+              const currentCompleted = getCompletedCount();
 
-              console.log(`[FALLBACK] Using fallback for ${docType}, completed: ${completedDocs}/${totalDocs}`);
+              console.log(`[FALLBACK] Using fallback for [${docIndex}] ${docType}, completed: ${currentCompleted}/${totalDocs}`);
               sendEvent(controller, encoder, {
                 type: 'complete',
                 documentType: docType,
                 documentTitle: DOCUMENT_TYPE_LABELS[docType],
                 document: fallbackDoc,
-                completed: completedDocs,
+                completed: currentCompleted,
                 total: totalDocs,
                 error: 'フォールバック文書を使用',
               });
@@ -124,12 +131,15 @@ export async function POST(request: NextRequest) {
             }
           });
 
-          console.log(`[BATCH COMPLETE] Waiting for batch ${i / MAX_CONCURRENT + 1} to finish...`);
+          const batchNum = Math.floor(i / MAX_CONCURRENT) + 1;
+          console.log(`[BATCH ${batchNum}] Waiting for all documents in batch to finish...`);
+          const batchStartTime = Date.now();
           await Promise.all(batchPromises);
-          console.log(`[BATCH DONE] Batch ${i / MAX_CONCURRENT + 1} finished. completedDocs: ${completedDocs}`);
+          const batchDuration = ((Date.now() - batchStartTime) / 1000).toFixed(1);
+          console.log(`[BATCH ${batchNum}] COMPLETED in ${batchDuration}s. Total completed: ${getCompletedCount()}/${totalDocs}`);
         }
 
-        console.log(`[ALL COMPLETE] All documents generated. Sending done event. Total: ${completedDocs}/${totalDocs}`);
+        console.log(`[ALL COMPLETE] All documents generated. Sending done event. Total: ${getCompletedCount()}/${totalDocs}`);
         sendEvent(controller, encoder, {
           type: 'done',
           completed: totalDocs,
