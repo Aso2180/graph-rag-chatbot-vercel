@@ -261,6 +261,16 @@ function buildDiagnosisPrompt(input: DiagnosisInput, combinedResults: any): stri
     });
   }
 
+  // チャット履歴をコンテキストに追加
+  if (input.chatHistory && input.chatHistory.length > 0) {
+    context += '\n【ユーザーとの相談内容】\n';
+    context += 'ユーザーは以下の点について法的リスクの相談を行っています。これらの懸念事項を診断結果に反映してください：\n';
+    input.chatHistory.forEach((msg) => {
+      context += `${msg.role === 'user' ? 'ユーザー' : 'アシスタント'}: ${msg.content}\n`;
+    });
+    context += '\n';
+  }
+
   return `あなたは日本およびグローバルのAI法規制に精通した法的リスク分析の専門家です。
 以下のAIアプリケーションについて、包括的な法的リスク診断を行ってください。
 

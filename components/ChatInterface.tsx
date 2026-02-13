@@ -78,12 +78,17 @@ export default function ChatInterface() {
     setIsAnalyzing(true);
     try {
       const input = userContextToDiagnosisInput(userContext);
-      setDiagnosisInput(input);
+      // チャット履歴を追加
+      const inputWithChat = {
+        ...input,
+        chatHistory: messages.map(m => ({ role: m.role, content: m.content }))
+      };
+      setDiagnosisInput(inputWithChat);
 
       const response = await fetch('/api/diagnosis/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
+        body: JSON.stringify(inputWithChat),
       });
 
       const data = await response.json();

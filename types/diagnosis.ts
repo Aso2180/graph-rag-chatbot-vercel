@@ -12,6 +12,7 @@ export interface DiagnosisInput {
   useCases: string[];
   concernedRisks: string[];
   additionalNotes?: string;
+  chatHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 // リスク項目

@@ -280,7 +280,7 @@ export function Step2RiskAnalysis({
           className="w-full flex items-center justify-between text-left"
         >
           <div>
-            <h3 className="text-sm font-bold text-gray-700">より詳しく相談する</h3>
+            <h3 className="text-sm font-bold text-gray-700">より詳しく相談する（チャットの内容はリスク診断や規約生成に反映されます）</h3>
             <p className="text-xs text-gray-500">チャットで法的リスクについて質問できます</p>
           </div>
           <span className="text-gray-400">{showChat ? '▲' : '▼'}</span>
