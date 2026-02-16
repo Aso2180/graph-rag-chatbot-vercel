@@ -12,31 +12,37 @@ interface DocumentTypeSelectorProps {
 const DOCUMENT_OPTIONS: Array<{
   type: DocumentType;
   description: string;
+  example: string;
   icon: string;
 }> = [
   {
     type: 'terms_of_service',
     description: 'サービス利用条件、免責事項、禁止事項等を定めた文書',
+    example: '新サービス開始時、規約改定時',
     icon: '📋',
   },
   {
     type: 'privacy_policy',
     description: '個人情報の収集・利用・保護に関する方針',
+    example: 'Webサイト公開時、個人情報取扱変更時',
     icon: '🔒',
   },
   {
     type: 'ai_disclaimer',
     description: 'AI機能の制限、出力の正確性に関する免責事項',
+    example: 'AI機能実装時、利用規約への追記',
     icon: '🤖',
   },
   {
     type: 'internal_risk_report',
     description: '社内向けのリスク評価・対策レポート',
+    example: '新規プロジェクト開始時、定期監査',
     icon: '📊',
   },
   {
     type: 'user_guidelines',
     description: 'ユーザー向けの利用ガイドライン・ベストプラクティス',
+    example: 'コミュニティ運営時、サービス説明',
     icon: '📖',
   },
 ];
@@ -90,6 +96,9 @@ export function DocumentTypeSelector({
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-gray-600 mt-1">{option.description}</p>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1 italic">
+                  例: {option.example}
+                </p>
               </div>
             </div>
           </div>
