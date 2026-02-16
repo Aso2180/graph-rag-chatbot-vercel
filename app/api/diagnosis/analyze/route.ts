@@ -197,6 +197,7 @@ async function analyzeLegalRisks(
         {
           model: 'claude-sonnet-4-5-20250929',
           max_tokens: 8000,
+          temperature: 0, // 判定の一貫性を確保（同じ入力に対して常に同じ結果）
           messages: [{ role: 'user', content: prompt }],
         },
         {
@@ -207,10 +208,36 @@ async function analyzeLegalRisks(
       const responseText =
         response.content[0]?.type === 'text' ? response.content[0].text : '';
 
-      // JSONレスポンスをパース
+      console.log('Raw response length:', responseText.length);
+
+      // JSONレスポンスをパース（複数のパターンを試行）
+      let parsed: any = null;
+
+      // 1. JSONコードブロックから抽出
       const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[1]);
+        try {
+          parsed = JSON.parse(jsonMatch[1].trim());
+          console.log('Successfully parsed JSON from code block');
+        } catch (e) {
+          console.error('Failed to parse JSON from code block:', e);
+        }
+      }
+
+      // 2. JSONコードブロックなしで直接抽出
+      if (!parsed) {
+        const directJsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (directJsonMatch) {
+          try {
+            parsed = JSON.parse(directJsonMatch[0]);
+            console.log('Successfully parsed JSON directly from response');
+          } catch (e) {
+            console.error('Failed to parse JSON directly:', e);
+          }
+        }
+      }
+
+      if (parsed && parsed.overallRiskLevel && parsed.risks) {
         return {
           ...parsed,
           diagnosedAt: new Date().toISOString(),
@@ -299,37 +326,151 @@ function buildDiagnosisPrompt(input: DiagnosisInput, combinedResults: any): stri
 
 ${context}
 
+【診断方針】
+あなたは企業のAI活用を支援する立場です。過度に厳しくせず、実用的なリスク評価を行ってください。
+本当に重要なリスクを明確に警告し、企業が安心してAIを活用できるよう支援することが目標です。
+
+【リスクレベル判定基準】（112パターンの実測データに基づく）
+
+HIGH（慎重に判定）- 本当に高リスクなケースのみ:
+ • マーケティング・広告 + (外部API OR 会員登録 OR 動画/画像生成)
+ • 採用活動 + (外部API OR 会員登録 OR 動画/画像生成) ※差別リスク
+ • 顧客向けサービス・製品組込み + (外部API OR 会員登録)
+ • 動画/画像生成 + (外部API OR 会員登録 OR 商用利用)
+
+LOW（積極的に判定）- 企業のAI活用を支援:
+ • テキスト/音声のみ + 社内研修・業務効率化 + ローカル処理
+ • 社内利用 + 外部APIなし + 会員登録なし
+
+MEDIUM（デフォルト）:
+ • 上記以外の実務的にバランスの取れたケース
+
 【診断要件】
-1. 総合リスクレベル（high/medium/low）を判定
+1. 総合リスクレベル判定（high/medium/low）- 上記基準に従う
 2. 各リスク領域について詳細分析
+   - プライバシー・個人情報保護
+   - API利用規約・データ送信
+   - 著作権・知的財産
+   - 透明性・説明責任
+   - バイアス・公平性
 3. 法的根拠（適用される法律・規制）を明示
-4. 具体的な対策・推奨事項を提示
+4. 具体的な対策・推奨事項を提示（中小企業でも実行可能な範囲）
 5. 優先対応すべき事項をリストアップ
 
-【重要】以下のJSON形式で回答してください:
+【出力形式の重要な指示】
+- 必ずJSONコードブロック内に有効なJSONのみを出力してください
+- JSONの前後に説明文を一切含めないでください
+- 必ず以下の構造に従ってください
+- 全ての文字列はダブルクォートで囲んでください
+- 配列が空の場合は [] と記述してください
 
 \`\`\`json
 {
-  "overallRiskLevel": "high|medium|low",
+  "overallRiskLevel": "high",
   "executiveSummary": "総合的な診断サマリー（200-300字程度）",
   "risks": [
     {
-      "category": "リスクカテゴリ名",
-      "level": "high|medium|low",
+      "category": "プライバシー・個人情報保護",
+      "level": "high",
       "summary": "リスクの概要（1-2文）",
-      "details": "詳細な説明",
-      "legalBasis": ["関連する法律・規制1", "法律2"],
-      "recommendations": ["対策1", "対策2"],
-      "graphRagSources": ["参照した文書名があれば"]
+      "details": "詳細な説明（法的リスクの内容、影響範囲、発生可能性など）",
+      "legalBasis": ["個人情報保護法", "GDPR"],
+      "recommendations": ["具体的な対策1", "対策2"],
+      "graphRagSources": []
     }
   ],
   "priorityActions": ["最優先で対応すべき事項1", "事項2", "事項3"],
-  "relatedCases": ["参考となる事例や判例があれば"],
+  "relatedCases": [],
   "disclaimer": "この診断は情報提供を目的としており、法的アドバイスではありません。具体的な対応については、専門家にご相談ください。"
 }
 \`\`\`
 
-診断結果をJSON形式で出力してください。`;
+上記のJSON形式で診断結果を出力してください。必ずJSONコードブロック内にのみ出力し、その前後に他のテキストを含めないでください。`;
+}
+
+/**
+ * 総合リスクレベル判定（112パターンの実測データに基づく最適化ロジック）
+ *
+ * 【設計方針】
+ * - 企業のAI活用を支援: 過度に厳しくせず、実用的な判定
+ * - 重要なリスクを警告: 本当に危険なケースは明確にHIGHと判定
+ * - データドリブン: 112パターンの実測結果に基づく判定基準
+ *
+ * 【実測結果サマリー】
+ * - HIGH率: marketing(87.5%), recruitment/customerService/productIntegration(68.8%)
+ * - LOW率: internalTraining(6.3%), internalOperations(18.8%)
+ * - コンテンツ別HIGH率: video(71.4%), image(67.9%), audio(32.1%), text(28.6%)
+ */
+function determineOverallRiskLevel(
+  input: DiagnosisInput,
+  risks: RiskItem[]
+): 'high' | 'medium' | 'low' {
+  const isVideoOrImage =
+    input.aiTechnologies?.includes('video_generation') ||
+    input.aiTechnologies?.includes('image_generation');
+
+  const isTextOrAudio =
+    !isVideoOrImage && (
+      input.aiTechnologies?.includes('llm') ||
+      input.aiTechnologies?.includes('audio_generation')
+    );
+
+  const hasExternalAPI = input.dataTransmission === 'external_api' || input.dataTransmission === 'both';
+  const hasRegistration = input.inputDataTypes?.includes('personal_info') ||
+                         input.inputDataTypes?.includes('sensitive_personal');
+
+  const useCases = input.useCases || [];
+  const isMarketing = useCases.some(u => u.includes('マーケティング') || u.includes('広告'));
+  const isRecruitment = useCases.some(u => u.includes('採用'));
+  const isCustomerService = useCases.some(u => u.includes('顧客向け'));
+  const isProductIntegration = useCases.some(u => u.includes('製品組込み'));
+  const isInternalTraining = useCases.some(u => u.includes('社内研修') || u.includes('教育'));
+  const isInternalOperations = useCases.some(u => u.includes('業務効率化'));
+  const isCompanyIntroduction = useCases.some(u => u.includes('会社案内'));
+
+  const isCommercialUse = isMarketing || isCustomerService || isProductIntegration;
+  const isInternalUse = input.targetUsers?.includes('internal') &&
+                       !input.targetUsers?.includes('general_public');
+
+  // ===== HIGH RISK 判定 =====
+  // 実測データで87.5%がHIGHになったパターン
+  if (isMarketing && (hasExternalAPI || hasRegistration || isVideoOrImage)) {
+    return 'high';
+  }
+
+  // 実測データで68.8%がHIGHになったパターン
+  if ((isRecruitment || isCustomerService || isProductIntegration) &&
+      (hasExternalAPI || hasRegistration)) {
+    return 'high';
+  }
+
+  // 実測データでvideo(71.4%)、image(67.9%)が高リスク
+  if (isVideoOrImage && (hasExternalAPI || hasRegistration || isCommercialUse)) {
+    return 'high';
+  }
+
+  // 採用活動は差別リスクで高リスク（実測68.8%がHIGH）
+  if (isRecruitment && (isVideoOrImage || hasRegistration)) {
+    return 'high';
+  }
+
+  // ===== LOW RISK 判定 =====
+  // 実測データでinternalTraining(6.3%のみHIGH)、internalOperations(18.8%のみHIGH)
+  // text(28.6%のみHIGH)、audio(32.1%のみHIGH)
+  if (isTextOrAudio && !hasExternalAPI && !hasRegistration) {
+    // 社内研修・業務効率化はLOW
+    if (isInternalTraining || isInternalOperations) {
+      return 'low';
+    }
+    // 社内利用の会社案内もLOW
+    if (isCompanyIntroduction && isInternalUse) {
+      return 'low';
+    }
+  }
+
+  // ===== MEDIUM RISK 判定（デフォルト） =====
+  // HIGH/LOWに該当しない場合は、実務的にバランスの取れたMEDIUM
+  return 'medium';
 }
 
 function generateFallbackResult(
@@ -363,18 +504,29 @@ function generateFallbackResult(
 
   // 外部API利用リスク
   if (input.dataTransmission === 'external_api' || input.dataTransmission === 'both') {
+    // 顧客向けサービスや商用利用の場合は高リスク
+    const isCommercialUse =
+      Array.isArray(input.targetUsers) &&
+      (input.targetUsers.includes('general_public') || input.targetUsers.includes('business')) &&
+      input.useCases?.some(u =>
+        u.includes('顧客向け') || u.includes('製品') || u.includes('マーケティング') || u.includes('広告')
+      );
+
     risks.push({
       category: 'API利用規約・データ送信',
-      level: 'medium',
+      level: isCommercialUse ? 'high' : 'medium',
       summary: '外部AIサービスへのデータ送信に関する規約遵守とリスク管理が必要です。',
       details:
-        '各AIプロバイダーの利用規約、特にデータの取り扱い、学習への利用可否、禁止用途を確認し遵守する必要があります。',
-      legalBasis: ['各プロバイダー利用規約', 'クラウドサービス契約'],
+        isCommercialUse
+          ? '商用サービスでの外部API利用には、ユーザーデータの送信、学習利用の可否、サービス品質保証など、高度なリスク管理が必要です。利用規約違反や予期せぬサービス停止のリスクがあります。'
+          : '各AIプロバイダーの利用規約、特にデータの取り扱い、学習への利用可否、禁止用途を確認し遵守する必要があります。',
+      legalBasis: ['各プロバイダー利用規約', 'クラウドサービス契約', '個人情報保護法（データ送信）'],
       recommendations: [
         'プロバイダー利用規約の詳細確認',
         'オプトアウト設定の確認・適用',
         'データ処理契約（DPA）の締結検討',
-      ],
+        isCommercialUse ? 'ユーザーへの外部API利用の明示的な説明と同意取得' : '',
+      ].filter(Boolean),
       graphRagSources: [],
     });
   }
@@ -383,20 +535,32 @@ function generateFallbackResult(
   if (
     input.aiTechnologies?.includes('llm') ||
     input.aiTechnologies?.includes('image_generation') ||
+    input.aiTechnologies?.includes('video_generation') ||
     input.aiTechnologies?.includes('code_generation')
   ) {
+    // 動画・画像生成で顧客向けサービスの場合は高リスク
+    const isHighRiskContent =
+      (input.aiTechnologies?.includes('video_generation') ||
+       input.aiTechnologies?.includes('image_generation')) &&
+      input.useCases?.some(u =>
+        u.includes('顧客向け') || u.includes('製品') || u.includes('マーケティング') || u.includes('広告')
+      );
+
     risks.push({
       category: '著作権・知的財産',
-      level: 'medium',
+      level: isHighRiskContent ? 'high' : 'medium',
       summary: 'AI生成コンテンツの著作権と既存著作物の利用に関する検討が必要です。',
       details:
-        'AI生成物の著作権帰属、学習データに含まれる著作物の権利処理、生成物が既存著作物に類似するリスクを検討する必要があります。',
-      legalBasis: ['著作権法', 'AI生成物に関するガイドライン'],
+        isHighRiskContent
+          ? '動画・画像などの視覚的コンテンツを顧客向けサービスで使用する場合、著作権侵害、肖像権侵害、商標権侵害などの高いリスクがあります。生成物が既存作品に類似する可能性や、学習データの権利処理が不十分な場合の法的リスクを慎重に評価する必要があります。'
+          : 'AI生成物の著作権帰属、学習データに含まれる著作物の権利処理、生成物が既存著作物に類似するリスクを検討する必要があります。',
+      legalBasis: ['著作権法', 'AI生成物に関するガイドライン', '商標法', '不正競争防止法'],
       recommendations: [
         'AI生成コンテンツの権利帰属を利用規約で明確化',
-        '商用利用時の権利確認フロー策定',
+        isHighRiskContent ? '専門家による事前の権利クリアランス実施' : '商用利用時の権利確認フロー策定',
         '類似性チェックの仕組み検討',
-      ],
+        isHighRiskContent ? 'ユーザーへの生成物利用リスクの説明と免責事項の明示' : '',
+      ].filter(Boolean),
       graphRagSources: [],
     });
   }
@@ -455,10 +619,8 @@ function generateFallbackResult(
     });
   }
 
-  // 総合リスクレベルを判定
-  const hasHighRisk = risks.some((r) => r.level === 'high');
-  const hasMediumRisk = risks.some((r) => r.level === 'medium');
-  const overallRiskLevel = hasHighRisk ? 'high' : hasMediumRisk ? 'medium' : 'low';
+  // 総合リスクレベルを判定（112パターンの実測データに基づく最適化ロジック）
+  const overallRiskLevel = determineOverallRiskLevel(input, risks);
 
   // 優先対応事項
   const priorityActions = risks
@@ -476,7 +638,7 @@ function generateFallbackResult(
     executiveSummary: `${input.appName || 'このAIアプリケーション'}について診断を行いました。${risks.length}件のリスク領域が特定され、総合リスクレベルは「${
       overallRiskLevel === 'high' ? '高' : overallRiskLevel === 'medium' ? '中' : '低'
     }」と判定されました。${
-      hasHighRisk
+      overallRiskLevel === 'high'
         ? '高リスク項目について早急な対応を推奨します。'
         : '適切な対策を講じることでリスクを管理可能です。'
     }`,
