@@ -17,7 +17,12 @@ export interface FileInfo {
 }
 
 // ファイルタイプとサイズの制限
-const ALLOWED_FILE_TYPES = ['application/pdf'];
+const ALLOWED_FILE_TYPES = [
+  'application/pdf',
+  'text/markdown',
+  'text/x-markdown',
+  'text/plain',         // ブラウザによってはMDをtext/plainとして送信する場合がある
+];
 const MAX_FILE_SIZE_MB = 20;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -41,11 +46,14 @@ const SUSPICIOUS_KEYWORDS = [
 export function checkFileBasics(file: FileInfo): ContentCheckResult {
   const warnings: string[] = [];
   
-  // ファイルタイプチェック
-  if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+  // ファイルタイプチェック（MIMEタイプまたは拡張子で判定）
+  const isMD = file.name.toLowerCase().endsWith('.md');
+  const isPDF = file.name.toLowerCase().endsWith('.pdf');
+  const isAllowedType = ALLOWED_FILE_TYPES.includes(file.type) || isMD || isPDF;
+  if (!isAllowedType) {
     return {
       allowed: false,
-      reason: `許可されていないファイル形式です。PDFファイルのみアップロード可能です。（検出: ${file.type}）`
+      reason: `許可されていないファイル形式です。PDFまたはMarkdown（.md）ファイルのみアップロード可能です。（検出: ${file.type}）`
     };
   }
 

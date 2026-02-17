@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { UserContext, canProceedToStep2 } from '@/types/userContext';
 
 interface Step1UserContextProps {
@@ -61,6 +62,37 @@ export function Step1UserContext({
   isLoading,
 }: Step1UserContextProps) {
   const canProceed = canProceedToStep2(userContext);
+  const [showGitHub, setShowGitHub] = useState(false);
+  const [githubUrl, setGithubUrl] = useState('');
+  const [githubLoading, setGithubLoading] = useState(false);
+  const [githubResult, setGithubResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleGitHubImport = async () => {
+    if (!githubUrl.trim() || !memberEmail) return;
+    setGithubLoading(true);
+    setGithubResult(null);
+    try {
+      const res = await fetch('/api/import/github', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repoUrl: githubUrl.trim(), memberEmail }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGithubResult({
+          type: 'success',
+          message: `✓ ${data.repo} から ${data.imported}件のMDファイルを取得しました`,
+        });
+        onUpdate({ hasPDFUploaded: true });
+      } else {
+        setGithubResult({ type: 'error', message: data.error || '取得に失敗しました' });
+      }
+    } catch {
+      setGithubResult({ type: 'error', message: 'ネットワークエラーが発生しました' });
+    } finally {
+      setGithubLoading(false);
+    }
+  };
 
   const updateContentType = (key: keyof UserContext['contentTypes'], value: boolean) => {
     onUpdate({
@@ -256,7 +288,7 @@ export function Step1UserContext({
           参考資料を追加（任意）
         </h3>
         <p className="text-xs text-gray-600 mb-3">
-          PDFをアップロードすると、より正確な分析が可能になります
+          PDFまたはMarkdown（.md）ファイルをアップロードすると、より正確な分析が可能になります
         </p>
 
         <div className="space-y-3">
@@ -277,18 +309,18 @@ export function Step1UserContext({
                 💡 <strong>gais@test.com</strong>：全会員共通のデフォルトドキュメント（AI法的リスク資料）をDashboardから閲覧できます
               </p>
               <p className="text-xs text-blue-700 mt-1">
-                ※ 自分のPDFをアップロードする場合は、ご自身のメールアドレスに変更してください
+                ※ 自分のPDF/Markdownをアップロードする場合は、ご自身のメールアドレスに変更してください
               </p>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              PDFファイル
+              ファイル（PDF / Markdown）
             </label>
             <input
               type="file"
-              accept=".pdf"
+              accept=".pdf,.md"
               onChange={onFileUpload}
               disabled={isLoading || !memberEmail}
               className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 disabled:opacity-50"
@@ -307,6 +339,70 @@ export function Step1UserContext({
             </div>
           )}
         </div>
+      </div>
+
+      {/* 上級者向け：GitHubからMDファイルを取得 */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowGitHub(!showGitHub)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+        >
+          <span className="text-sm font-medium text-gray-600 flex items-center gap-2">
+            <span>⚙️</span>
+            上級者向け：GitHubリポジトリからMDファイルを取得（任意）
+          </span>
+          <span className="text-gray-400 text-xs">{showGitHub ? '▲' : '▼'}</span>
+        </button>
+
+        {showGitHub && (
+          <div className="px-4 py-4 space-y-3 bg-white">
+            <p className="text-xs text-gray-600">
+              パブリックGitHubリポジトリ内の<strong>.mdファイルのみ</strong>を一括取得し、分析に活用します。
+            </p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              ⚠️ パブリックリポジトリのみ対応しています。プライベートリポジトリは取得できません。
+            </p>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                GitHubリポジトリURL
+              </label>
+              <input
+                type="url"
+                value={githubUrl}
+                onChange={(e) => setGithubUrl(e.target.value)}
+                placeholder="例: https://github.com/yourname/yourrepo"
+                disabled={githubLoading || !memberEmail}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              />
+              {!memberEmail && (
+                <p className="text-xs text-gray-500 mt-1">
+                  ※ 取得するにはメールアドレスを入力してください
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGitHubImport}
+              disabled={!githubUrl.trim() || !memberEmail || githubLoading}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-700 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {githubLoading ? '取得中...' : 'MDファイルを取得する'}
+            </button>
+
+            {githubResult && (
+              <p className={`text-xs px-3 py-2 rounded ${
+                githubResult.type === 'success'
+                  ? 'text-green-700 bg-green-50 border border-green-200'
+                  : 'text-red-700 bg-red-50 border border-red-200'
+              }`}>
+                {githubResult.message}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 次へボタン */}

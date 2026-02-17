@@ -89,8 +89,13 @@ export async function POST(request: NextRequest) {
     const sanitizedName = sanitizeFileName(file.name);
     const fileName = `${Date.now()}-${sanitizedName}`;
 
-    // PDF解析とNeo4jへの保存（GAIS会員情報を含む）
-    await processPDFForGraphRAG(buffer, fileName, memberEmail);
+    // ファイル種別に応じた解析とNeo4jへの保存
+    const isMD = file.name.toLowerCase().endsWith('.md');
+    if (isMD) {
+      await processMDForGraphRAG(buffer, fileName, memberEmail);
+    } else {
+      await processPDFForGraphRAG(buffer, fileName, memberEmail);
+    }
 
     const response = NextResponse.json({
       message: 'File uploaded successfully',
@@ -143,6 +148,18 @@ async function processPDFForGraphRAG(buffer: Buffer, fileName: string, memberEma
     return result;
   } catch (error) {
     console.error(`PDF processing failed: ${fileName}`, error);
+    throw error;
+  }
+}
+
+async function processMDForGraphRAG(buffer: Buffer, fileName: string, memberEmail: string) {
+  try {
+    const { processMDFromBuffer } = await import('@/lib/pdf/processor');
+    const result = await processMDFromBuffer(buffer, fileName, memberEmail);
+    console.log(`MD processing completed: ${fileName}`, result);
+    return result;
+  } catch (error) {
+    console.error(`MD processing failed: ${fileName}`, error);
     throw error;
   }
 }

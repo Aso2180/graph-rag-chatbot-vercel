@@ -46,6 +46,8 @@ export default function MemberDashboard({ memberEmail }: MemberDashboardProps) {
   const [selectedDocument, setSelectedDocument] = useState<DocumentContent | null>(null);
   const [loadingFileName, setLoadingFileName] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [deletingFileName, setDeletingFileName] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<DocumentInfo | null>(null);
 
   useEffect(() => {
     if (memberEmail) {
@@ -105,6 +107,28 @@ export default function MemberDashboard({ memberEmail }: MemberDashboardProps) {
   const closeModal = () => {
     setShowModal(false);
     setSelectedDocument(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDelete) return;
+    setDeletingFileName(confirmDelete.fileName);
+    setConfirmDelete(null);
+    try {
+      const res = await fetch(
+        `/api/document-delete?fileName=${encodeURIComponent(confirmDelete.fileName)}&email=${encodeURIComponent(memberEmail)}`,
+        { method: 'DELETE' }
+      );
+      const data = await res.json();
+      if (res.ok) {
+        await fetchMemberStats();
+      } else {
+        alert(data.error || '削除に失敗しました');
+      }
+    } catch {
+      alert('削除中にエラーが発生しました');
+    } finally {
+      setDeletingFileName(null);
+    }
   };
 
   const formatDate = (dateString: string | null) => {
@@ -320,6 +344,13 @@ export default function MemberDashboard({ memberEmail }: MemberDashboardProps) {
                       <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
                         処理済み
                       </span>
+                      <button
+                        onClick={() => setConfirmDelete(doc)}
+                        disabled={deletingFileName !== null}
+                        className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 disabled:opacity-50 transition-colors"
+                      >
+                        {deletingFileName === doc.fileName ? '削除中...' : '削除'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -328,6 +359,35 @@ export default function MemberDashboard({ memberEmail }: MemberDashboardProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* 削除確認ダイアログ */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">ドキュメントを削除しますか？</h3>
+            <p className="text-sm text-gray-600 mb-1">以下のドキュメントをNeo4jから完全に削除します。</p>
+            <p className="text-sm font-medium text-gray-800 bg-gray-100 rounded px-3 py-2 mb-4">
+              {confirmDelete.title}
+              <span className="block text-xs text-gray-500 mt-1">{confirmDelete.fileName}</span>
+            </p>
+            <p className="text-xs text-red-600 mb-6">この操作は取り消せません。</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded text-sm transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors"
+              >
+                削除する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ドキュメント内容表示モーダル */}
       {showModal && selectedDocument && (

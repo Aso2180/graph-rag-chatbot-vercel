@@ -9,6 +9,44 @@ interface PDFChunk {
   endIndex: number;
 }
 
+export async function processMDFromBuffer(buffer: Buffer, fileName: string, memberEmail?: string) {
+  console.log(`Starting MD processing for: ${fileName}`);
+
+  const text = buffer.toString('utf-8');
+  console.log(`MD parsed: ${text.length} characters`);
+
+  const metadata = {
+    title: fileName.replace(/\.md$/i, ''),
+    author: 'Unknown',
+    subject: 'Markdown document',
+    keywords: '',
+    creationDate: new Date(),
+    pageCount: 1,
+    fileName: fileName,
+    uploadedBy: memberEmail || 'anonymous',
+    uploadedAt: new Date(),
+    organization: 'GAIS',
+  };
+
+  const chunks = splitTextIntoChunks(text, 1000);
+
+  let neo4jSaved = false;
+  try {
+    await savePDFToNeo4j(metadata, chunks);
+    neo4jSaved = true;
+    console.log(`MD processing completed: ${chunks.length} chunks created and saved to Neo4j`);
+  } catch (error) {
+    console.warn(`Neo4j save failed, but MD was processed successfully:`, error instanceof Error ? error.message : 'Unknown error');
+  }
+
+  return {
+    success: true,
+    metadata,
+    chunkCount: chunks.length,
+    neo4jSaved,
+  };
+}
+
 export async function processPDFForNeo4jFromBuffer(buffer: Buffer, fileName: string, memberEmail?: string) {
   console.log(`Starting PDF processing for: ${fileName}`);
   console.log(`Buffer size: ${buffer.length} bytes`);
