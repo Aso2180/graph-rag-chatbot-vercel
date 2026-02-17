@@ -348,13 +348,15 @@ function getDocumentTypeInstructions(docType: DocumentType, isInternalUse: boole
 `,
       ai_disclaimer: `
 【社内AI利用における注意事項（参照用雛形・簡潔版）】
+**文字数制限: 全体で1,200文字以内（厳守）**
+
 以下の4項目に絞って記載すること:
 1. AI出力の性質（自動生成・正確性の非保証）
 2. 利用者の確認義務（盲信禁止・検証必須）
 3. 重要判断時の専門家相談
 4. 問題発生時の報告義務
 
-箇条書きで簡潔に記載すること。
+各項目は2〜3行の箇条書きのみで記載し、説明文は不要。
 `,
       internal_risk_report: `
 【社内リスクレポート】
@@ -420,6 +422,8 @@ function getDocumentTypeInstructions(docType: DocumentType, isInternalUse: boole
 `,
       ai_disclaimer: `
 【AI免責事項の構成（参照用雛形・簡潔版）】
+**文字数制限: 全体で1,500文字以内（厳守）**
+
 以下の5項目に絞って記載すること:
 1. AI出力の性質（自動生成であること・正確性の非保証・ハルシネーションの可能性）
 2. 利用者の責任（出力内容の検証・自己判断）
@@ -427,7 +431,7 @@ function getDocumentTypeInstructions(docType: DocumentType, isInternalUse: boole
 4. 禁止される利用方法
 5. 責任の制限（「当社は責任を負いません」形式で記載）
 
-各項目は箇条書きで簡潔に記載すること。
+各項目は2〜3行の箇条書きのみで記載し、説明文は不要。
 `,
       internal_risk_report: `
 【社内リスクレポートの構成】

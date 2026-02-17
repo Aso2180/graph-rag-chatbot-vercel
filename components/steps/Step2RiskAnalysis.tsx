@@ -68,7 +68,7 @@ export function Step2RiskAnalysis({
   // ユーザーコンテキストからサマリーを生成
   const getSummary = () => {
     const basicInfo: string[] = [];
-    if (userContext.isIndividual) basicInfo.push('社内利用');
+    if (userContext.isInternalUse) basicInfo.push('社内利用');
     if (userContext.isCorporate) basicInfo.push('法人サービス');
     if (userContext.hasRegistration) basicInfo.push('会員登録あり');
     if (userContext.hasExternalAPI) basicInfo.push('外部API利用');

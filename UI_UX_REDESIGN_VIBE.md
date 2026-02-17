@@ -453,7 +453,7 @@ interface AppState {
   // STEP① の入力
   userContext: {
     // 基本情報
-    isIndividual: boolean;
+    isInternalUse: boolean;  // 社内利用（社外には公開しない）
     isCorporate: boolean;
     hasRegistration: boolean;
     hasExternalAPI: boolean;
@@ -501,7 +501,7 @@ interface AppState {
 // STEP①→② への遷移条件
 const canProceedToStep2 = () => {
   const ctx = state.userContext;
-  const hasBasicInfo = ctx.isIndividual || ctx.isCorporate ||
+  const hasBasicInfo = ctx.isInternalUse || ctx.isCorporate ||
                        ctx.hasRegistration || ctx.hasExternalAPI;
   const hasContentType = Object.values(ctx.contentTypes).some(v => v);
   const hasUsagePurpose = Object.values(ctx.usagePurposes).some(v => v);

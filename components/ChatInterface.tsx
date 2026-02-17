@@ -348,7 +348,12 @@ export default function ChatInterface() {
             onAnalyze={handleAnalyze}
             onAnalysisComplete={setDiagnosisResult}
             onNext={() => goToStep(3)}
-            onBack={() => setCurrentStep(1)}
+            onBack={() => {
+              // Step1に戻る際に診断結果をクリア
+              setDiagnosisResult(null);
+              setDiagnosisInput(null);
+              setCurrentStep(1);
+            }}
             isAnalyzing={isAnalyzing}
             messages={messages}
             onSendMessage={sendMessage}

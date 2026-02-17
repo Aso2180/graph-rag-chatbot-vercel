@@ -100,11 +100,11 @@ export function Step1UserContext({
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <CheckboxItem
-            id="basic-individual"
-            checked={userContext.isIndividual}
+            id="basic-internal"
+            checked={userContext.isInternalUse}
             onChange={(checked) => {
               onUpdate({
-                isIndividual: checked,
+                isInternalUse: checked,
                 // 社内利用をONにしたら、社外向けの利用目的をすべてクリア
                 ...(checked && {
                   usagePurposes: {
@@ -212,7 +212,7 @@ export function Step1UserContext({
             onChange={(checked) => updateUsagePurpose('companyIntroduction', checked)}
             label="会社案内・サービス紹介"
             tooltip="コーポレートサイト、サービス紹介、営業資料等"
-            disabled={userContext.isIndividual}
+            disabled={userContext.isInternalUse}
           />
           <CheckboxItem
             id="purpose-recruitment"
@@ -220,7 +220,7 @@ export function Step1UserContext({
             onChange={(checked) => updateUsagePurpose('recruitment', checked)}
             label="採用・リクルート"
             tooltip="採用サイト、仕事内容紹介、社員インタビュー等"
-            disabled={userContext.isIndividual}
+            disabled={userContext.isInternalUse}
           />
           <CheckboxItem
             id="purpose-marketing"
@@ -228,7 +228,7 @@ export function Step1UserContext({
             onChange={(checked) => updateUsagePurpose('marketing', checked)}
             label="マーケティング・広告"
             tooltip="広告素材、SNS投稿、プロモーション動画等"
-            disabled={userContext.isIndividual}
+            disabled={userContext.isInternalUse}
           />
           <CheckboxItem
             id="purpose-customer"
@@ -236,7 +236,7 @@ export function Step1UserContext({
             onChange={(checked) => updateUsagePurpose('customerService', checked)}
             label="顧客向けサービス提供"
             tooltip="ユーザーへのAI生成コンテンツ直接提供"
-            disabled={userContext.isIndividual}
+            disabled={userContext.isInternalUse}
           />
           <CheckboxItem
             id="purpose-product"
@@ -244,7 +244,7 @@ export function Step1UserContext({
             onChange={(checked) => updateUsagePurpose('productIntegration', checked)}
             label="商品・製品への組込み"
             tooltip="製品・サービスの一部としてAI生成物を使用"
-            disabled={userContext.isIndividual}
+            disabled={userContext.isInternalUse}
           />
         </div>
       </div>

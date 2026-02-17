@@ -47,7 +47,7 @@ export function Step3TermsGeneration({
           diagnosisResult={selectedType === 'risk-reflected' ? riskAnalysisResult || undefined : undefined}
           diagnosisInput={selectedType === 'risk-reflected' ? diagnosisInput || undefined : undefined}
           chatHistory={selectedType === 'risk-reflected' ? chatHistory : undefined}
-          onClose={onComplete}
+          onClose={() => setShowGenerator(false)}
         />
       </div>
     );
@@ -162,7 +162,7 @@ export function Step3TermsGeneration({
         <h4 className="text-sm font-bold text-gray-700 mb-2">入力された情報</h4>
         <div className="text-xs text-gray-600 space-y-1">
           {userContext.isCorporate && <p>• 法人サービス</p>}
-          {userContext.isIndividual && <p>• 個人開発</p>}
+          {userContext.isInternalUse && <p>• 社内利用</p>}
           {userContext.hasRegistration && <p>• 会員登録機能あり</p>}
           {userContext.hasExternalAPI && <p>• 外部API利用</p>}
           {userContext.contentTypes.text && <p>• テキスト生成</p>}

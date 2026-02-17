@@ -4,7 +4,7 @@ export type AppStep = 1 | 2 | 3;
 
 export interface UserContext {
   // 基本情報
-  isIndividual: boolean;  // 社内利用（社外には公開しない）
+  isInternalUse: boolean;  // 社内利用（社外には公開しない）
   isCorporate: boolean;
   hasRegistration: boolean;
   hasExternalAPI: boolean;
@@ -51,7 +51,7 @@ export interface AppState {
 
 // 初期状態
 export const initialUserContext: UserContext = {
-  isIndividual: false,
+  isInternalUse: false,
   isCorporate: false,
   hasRegistration: false,
   hasExternalAPI: false,
@@ -75,7 +75,7 @@ export const initialUserContext: UserContext = {
 
 // STEP①→② への遷移条件
 export const canProceedToStep2 = (ctx: UserContext): boolean => {
-  const hasBasicInfo = ctx.isIndividual || ctx.isCorporate ||
+  const hasBasicInfo = ctx.isInternalUse || ctx.isCorporate ||
                        ctx.hasRegistration || ctx.hasExternalAPI;
   const hasContentType = Object.values(ctx.contentTypes).some(v => v);
   const hasUsagePurpose = Object.values(ctx.usagePurposes).some(v => v);
@@ -156,7 +156,7 @@ export const userContextToDiagnosisInput = (ctx: UserContext): import('@/types/d
 
   // サービスタイプ文字列
   const serviceTypesStr: string[] = [];
-  if (ctx.isIndividual) serviceTypesStr.push('社内利用');
+  if (ctx.isInternalUse) serviceTypesStr.push('社内利用');
   if (ctx.isCorporate) serviceTypesStr.push('法人サービス');
   if (ctx.hasRegistration) serviceTypesStr.push('会員登録あり');
 
