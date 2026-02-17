@@ -57,8 +57,9 @@ webpack-server*.log
 WORK_RESUME_*.md
 エンターテイメント活用のAI法的リスク.pdf
 
-# development scripts (optional - keep for reference)
-# /scripts/
+# development scripts and test results
+/scripts/
+/test-results/
 
 # Temporary files
 *.tmp
