@@ -1,0 +1,255 @@
+# GAIS AI Legal Risk Analysis System
+
+## Project Overview
+GAIS AI使用上の法的リスク分析システム - A comprehensive web application for GAIS (Generative AI Association) members to analyze legal risks in AI usage and automatically generate legal documents.
+
+## Live Demo
+- Production URL: https://graph-rag-chatbot-vercel.vercel.app
+- Demo Video: https://graph-rag-chatbot-vercel.vercel.app/intro-video.mp4 (1min 26sec, 29MB)
+- GitHub Repository: https://github.com/Aso2180/graph-rag-chatbot-vercel
+
+## Core Features
+
+### 1. 5-Step Detailed Diagnosis Wizard
+- Basic Information: App name, description, pricing model (7 types)
+- AI Usage: AI technologies (12 types), providers (11 types), use cases (13 types)
+- Data Handling: Input data types (13 types), transmission (3 types), storage (8 types)
+- Target Users: User attributes (14 types), GDPR/COPPA compliance detection
+- Risk Concerns: Risk areas (15 items), additional notes
+
+### 2. AI Legal Risk Analysis
+- Analysis Engine: Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+- Integrated Search: GraphRAG (Neo4j) + Web Search (Tavily) parallel processing
+- Risk Assessment: HIGH/MEDIUM/LOW 3-tier evaluation
+- Output: Executive summary, detailed risk analysis, priority actions, related cases
+
+### 3. Legal Document Auto-Generation (5 Types)
+1. Terms of Service: Service conditions, disclaimers, governing law
+2. Privacy Policy: Personal data protection policy, data handling
+3. AI Disclaimer: AI function limitations, accuracy disclaimers
+4. Internal Risk Report: Risk assessment for management
+5. User Guidelines: Safe usage guidance
+
+Features:
+- Server-Sent Events (SSE) streaming generation
+- Parallel processing of multiple documents
+- Real-time preview, copy, download
+
+### 4. GraphRAG Integrated Search
+- PDF Upload: Automatic analysis of legal materials (max 20MB)
+- Markdown Import: Bulk retrieval from GitHub repositories
+- Graph Database: Structured knowledge storage in Neo4j Aura
+- Web Search Integration: Latest regulations and case law via Tavily API
+- Document Management: Member statistics, list view, deletion
+
+### 5. 3-Step Workflow
+Step 1: Usage Context Input
+- Basic info (4 items): Internal use, corporate service, registration, external API
+- AI-generated content types (4 types): Text, image, video, audio
+- Usage purposes (7 types): Internal training, operations, company intro, recruitment, marketing, customer service, product integration
+- File upload: PDF/Markdown, GitHub repository integration
+
+Step 2: Risk Analysis
+- Detailed diagnosis wizard (5 steps)
+- AI legal risk analysis (max 5 minutes)
+- Real-time chat consultation
+- Risk hints display
+
+Step 3: Terms Generation
+- Document type selection (max 5 types)
+- Company info input
+- Streaming generation (max 5 minutes)
+- Preview, copy, download
+
+### 6. Member Dashboard
+- Upload statistics (documents, pages, analysis chunks)
+- Document list and details
+- Document deletion
+- Upload history
+
+### 7. Introduction Video Modal
+- Auto-display on first access (localStorage management)
+- Maximize/minimize functionality
+- Skippable
+- "Don't show again" option
+
+## Technology Stack
+
+### Frontend
+- Next.js 14.2.35 (App Router)
+- React 18 + TypeScript
+- Tailwind CSS 4
+
+### Backend
+- Next.js API Routes (Serverless Functions)
+- Anthropic Claude API (Sonnet 4.5: claude-sonnet-4-5-20250929)
+- Neo4j Aura Professional (GraphRAG)
+- Tavily API (Web Search)
+
+### File Processing
+- pdf-parse-new: PDF parsing
+- Markdown Parser: MD document processing
+
+### Deployment
+- Vercel (Hosting, Function execution time settings)
+- Neo4j Aura (Cloud database)
+
+## Security Features
+
+### Implemented
+- Email Address Verification: GAIS member email identification
+- Rate Limiting (implemented on some APIs):
+  - Upload: 10 files/day
+  - Member stats: 200 requests/hour
+- Content Moderation:
+  - File type verification (PDF/Markdown only)
+  - File size limit (max 20MB)
+  - Filename validation (executable files excluded, special chars restricted)
+  - Duplicate upload prevention (same file within 1 hour)
+- Environment Variable Management: Secure storage of API keys and secrets
+
+## API Endpoints (17 Total)
+
+### Production Endpoints (13)
+- /api/chat - Chat message processing (60s timeout)
+- /api/upload - PDF/MD file upload
+- /api/import/github - GitHub repo MD retrieval
+- /api/diagnosis/analyze - Risk diagnosis analysis (300s timeout)
+- /api/generator/generate - Document generation (normal)
+- /api/generator/generate-stream - Document generation (SSE, 300s timeout)
+- /api/graph-search - GraphRAG search (60s timeout)
+- /api/web-search - Web search
+- /api/member-stats - Member statistics
+- /api/document-content - Document content retrieval
+- /api/document-delete - Document deletion
+- /api/learn - Document learning
+- /api/admin/default-documents - Default document management
+
+### Debug Endpoints (4 - Development Only)
+- /api/debug - Debug information
+- /api/debug-neo4j - Neo4j connection check
+- /api/test-upload - Upload test
+- /api/schedule-learn - Learning schedule
+
+## Project Structure
+
+### Components (26 TSX files)
+- diagnosis/ - Diagnosis-related components
+  - DiagnosisWizard.tsx - Main wizard
+  - DiagnosisResult.tsx - Result display
+  - WizardProgress.tsx - Progress indicator
+  - steps/ - 5 diagnosis steps
+- generator/ - Document generation components
+  - DocumentGenerator.tsx - Main generator
+  - DocumentTypeSelector.tsx - Type selector
+  - DocumentPreview.tsx - Preview and download
+  - DocumentGenerationProgress.tsx - Generation progress
+- steps/ - Main flow components
+  - Step1UserContext.tsx - Usage context input
+  - Step2RiskAnalysis.tsx - Risk analysis
+  - Step3TermsGeneration.tsx - Terms generation
+  - StepNavigation.tsx - Navigation
+  - DiagnosisProgress.tsx - Diagnosis progress
+- ui/ - UI components
+  - Modal.tsx, Checkbox.tsx, RadioGroup.tsx, card.tsx
+- ChatInterface.tsx - Main interface
+- MemberDashboard.tsx - Dashboard
+- VideoIntroModal.tsx - Video modal
+- LegalDisclaimer.tsx - Legal disclaimer
+
+### Libraries (9 files)
+- anthropic/ - Claude API integration
+- neo4j/ - Neo4j connection and queries
+- member/ - Member management and validation
+- rate-limit/ - Rate limiting
+- moderation/ - Content moderation
+- pdf/ - PDF processing
+- config/ - Environment configuration
+
+### Type Definitions (4 files)
+- chat.ts - Chat types
+- diagnosis.ts - Diagnosis types
+- document.ts - Document types
+- userContext.ts - User context types
+
+## Setup
+
+### Required Environment Variables
+```
+NEO4J_URI=neo4j+s://[your-instance].databases.neo4j.io
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=[your-password]
+ANTHROPIC_API_KEY=[your-claude-api-key]
+TAVILY_API_KEY=[your-tavily-api-key]
+NODE_ENV=development
+```
+
+### Installation
+```bash
+npm install
+npm run dev
+```
+
+Access at http://localhost:3000
+
+## Vercel Deployment
+
+### Vercel Configuration (vercel.json)
+Function execution time settings:
+- /api/generator/generate-stream/route.ts: 300s
+- /api/diagnosis/analyze/route.ts: 300s
+- /api/chat/route.ts: 60s
+- /api/graph-search/route.ts: 60s
+
+### Environment Variables (Vercel Dashboard)
+Same as local setup, with NODE_ENV=production
+
+## Key Files
+
+- /app/page.tsx - Home page entry point
+- /components/ChatInterface.tsx - Main application interface
+- /components/diagnosis/DiagnosisWizard.tsx - 5-step diagnosis wizard
+- /components/generator/DocumentGenerator.tsx - Document generation system
+- /lib/neo4j/client.ts - Neo4j database connection
+- /lib/anthropic/client.ts - Claude API client
+- /types/diagnosis.ts - Type definitions for diagnosis
+- /types/document.ts - Type definitions for documents
+- /public/intro-video.mp4 - Introduction video (29MB)
+
+## Innovation Highlights
+
+1. **Integrated Risk Analysis**: Combines GraphRAG knowledge base with real-time web search for comprehensive legal risk assessment
+2. **5-Step Detailed Diagnosis**: Covers 12 AI technologies, 11 providers, 13 use cases, 13 data types, 14 user attributes, 15 risk areas
+3. **Streaming Document Generation**: Real-time generation of 5 types of legal documents using SSE
+4. **GitHub Integration**: Automatic import of markdown files from public repositories for knowledge expansion
+5. **Neo4j GraphRAG**: Structured knowledge representation for advanced semantic search
+6. **Multi-Modal Content**: Supports text, image, video, audio AI-generated content analysis
+7. **Compliance Detection**: Automatic GDPR and COPPA compliance requirements detection
+
+## Impact & Use Cases
+
+- Legal risk assessment for AI service development
+- Automatic generation of Terms of Service and Privacy Policies
+- Internal risk reporting for management
+- Compliance checking for GDPR/COPPA requirements
+- Knowledge sharing among GAIS members through document uploads
+- Real-time consultation via integrated chat function
+
+## Technical Achievements
+
+- Claude Sonnet 4.5 integration for advanced legal analysis
+- Neo4j Aura GraphRAG implementation for knowledge graphs
+- Server-Sent Events (SSE) for real-time streaming
+- Vercel serverless functions with custom timeout configurations
+- Multi-source data integration (PDFs, Markdown, GitHub, Web)
+- Responsive design with mobile support
+- LocalStorage-based preference management
+
+## Version Information
+- Version: 2.0.0
+- Node.js: 18.x
+- Next.js: 14.2.35
+- Last Updated: 2025-02-23
+
+## License
+GAIS Members Only
