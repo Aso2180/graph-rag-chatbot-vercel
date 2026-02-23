@@ -6,6 +6,7 @@ import LegalDisclaimer from './LegalDisclaimer';
 import MemberDashboard from './MemberDashboard';
 import { validateUploadPermission } from '@/lib/member/validation';
 import { Modal } from './ui/Modal';
+import { VideoIntroModal } from './VideoIntroModal';
 import { DiagnosisResult, DiagnosisInput } from '@/types/diagnosis';
 import {
   AppStep,
@@ -48,9 +49,19 @@ export default function ChatInterface() {
   const [diagnosisInput, setDiagnosisInput] = useState<DiagnosisInput | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
+
+    // 初回アクセス時に動画モーダルを表示
+    const hideIntroVideo = localStorage.getItem('hideIntroVideo');
+    if (!hideIntroVideo) {
+      // 少し遅延させてから表示（ページロード後にスムーズに表示）
+      setTimeout(() => {
+        setShowVideoModal(true);
+      }, 500);
+    }
   }, []);
 
   // ステップ遷移
@@ -211,6 +222,12 @@ export default function ChatInterface() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-4xl mx-auto p-2 sm:p-4">
+      {/* 動画紹介モーダル */}
+      <VideoIntroModal
+        isOpen={showVideoModal}
+        onClose={() => setShowVideoModal(false)}
+      />
+
       {/* 法的免責事項 */}
       <LegalDisclaimer />
 
