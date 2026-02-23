@@ -64,13 +64,14 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // 会員の統計情報を取得
+      // 会員の統計情報を取得（デフォルト文書を除外）
       const statsResult = await session.run(`
         MATCH (d:Document)
         WHERE d.uploadedBy = $email AND d.organization = 'GAIS'
+          AND NOT coalesce(d.isDefault, false) = true
         OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
         WITH d, count(c) as chunkCount
-        RETURN 
+        RETURN
           d.uploadedBy as memberEmail,
           d.organization as organization,
           count(DISTINCT d) as documentCount,
@@ -123,13 +124,14 @@ export async function GET(request: NextRequest) {
 
       const stats = statsResult.records[0];
 
-      // 最近のアップロード文書を取得
+      // 最近のアップロード文書を取得（デフォルト文書を除外）
       const recentDocsResult = await session.run(`
         MATCH (d:Document)
         WHERE d.uploadedBy = $email AND d.organization = 'GAIS'
+          AND NOT coalesce(d.isDefault, false) = true
         OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
         WITH d, count(c) as chunkCount
-        RETURN 
+        RETURN
           d.title as title,
           d.fileName as fileName,
           d.uploadedAt as uploadedAt,
